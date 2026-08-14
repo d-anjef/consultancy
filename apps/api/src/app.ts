@@ -46,6 +46,9 @@ import { learningMaterialRoutes } from './modules/learning-materials/learning-ma
 import { attendanceRoutes } from './modules/attendance/attendance.routes.js';
 import { qrRoutes } from './modules/qr/qr.routes.js';
 
+import { taskRoutes } from './modules/tasks/task.routes.js';
+import { reportRoutes } from './modules/reports/report.routes.js';
+
 export function createApp(): express.Application {
   const app = express();
 
@@ -206,6 +209,9 @@ app.use(`${API_PREFIX}/learning-materials`, learningMaterialRoutes);
 app.use(`${API_PREFIX}/attendance`, attendanceRoutes);
 app.use(`${API_PREFIX}/qr`, qrRoutes);
 
+
+app.use(`${API_PREFIX}/tasks`, taskRoutes);
+app.use(`${API_PREFIX}/reports`, reportRoutes);
 
   // ─── 404 Handler ─────
   app.use(notFoundHandler);
