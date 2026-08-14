@@ -74,6 +74,9 @@ export interface StudentDocument extends Document {
 
   notes?: string;
 
+  referredBy?: Types.ObjectId;
+  referralRelationship?: string;
+
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   createdAt: Date;
@@ -217,6 +220,15 @@ const studentSchema = new Schema<StudentDocument>(
       ref: 'User',
       required: true,
     },
+    referredBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Student',
+      index: true,
+    },
+    referralRelationship:{
+    type: String,
+    trim: true,
+  },
     updatedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',

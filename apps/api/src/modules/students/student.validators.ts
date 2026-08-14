@@ -57,6 +57,8 @@ export const createStudentSchema = z.object({
   education: educationSchema.optional(),
   notes: z.string().trim().max(2000).optional(),
   sendInvitation: z.boolean().optional().default(true),
+  referredBy: objectIdSchema.optional(),
+  referralRelationship: z.string().trim().max(100).optional(),
 });
 
 export const updateStudentSchema = z.object({

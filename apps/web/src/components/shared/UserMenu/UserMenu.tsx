@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { LogOut, User as UserIcon, Settings, ShieldCheck } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/utils/format';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -74,14 +74,16 @@ export function UserMenu() {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => router.push(isStudent ? ROUTES.MY_PROFILE : '/users/me')}
+          onClick={() =>
+            router.push(isStudent ? ROUTES.MY_PROFILE : '/profile')
+          }
         >
           <UserIcon />
           Profile
         </DropdownMenuItem>
         {!isStudent && (
           <>
-            <DropdownMenuItem onClick={() => router.push('/settings/security')}>
+            <DropdownMenuItem onClick={() => router.push('/profile/security')}>
               <ShieldCheck />
               Security
             </DropdownMenuItem>
@@ -94,7 +96,10 @@ export function UserMenu() {
           </>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          onClick={handleLogout}
+          className="text-destructive focus:text-destructive"
+        >
           <LogOut />
           Sign out
         </DropdownMenuItem>

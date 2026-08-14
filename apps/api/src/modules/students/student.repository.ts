@@ -65,6 +65,10 @@ const STUDENT_POPULATE = [
     path: 'createdBy',
     select: 'email profile.firstName profile.lastName',
   },
+    {
+    path: 'referredBy',
+    select: 'studentId personal.firstName personal.lastName status',
+  },
 ];
 
 export class StudentRepository {

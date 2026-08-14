@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Logo } from '@/components/shared/Logo/logo';
+import { Logo } from '@/components/shared/Logo/Logo';
 import { siteConfig } from '@/config/site';
 
 export default function AuthLayout({ children }: { children: ReactNode }) {

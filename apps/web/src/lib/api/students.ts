@@ -79,6 +79,15 @@ export interface Student {
   createdBy: { id: string; email: string; firstName: string; lastName: string };
   createdAt: string;
   updatedAt: string;
+
+      referredBy?: {
+      id: string;
+      studentId: string;
+      firstName: string;
+      lastName: string;
+      status: string;
+    } | null;
+    referralRelationship?: string;
 }
 
 export interface StudentStats {
@@ -139,6 +148,8 @@ export interface CreateStudentInput {
     percentage?: number;
   };
   notes?: string;
+  referredBy?: string;
+  referralRelationship?: string;
   sendInvitation?: boolean;
 }
 
