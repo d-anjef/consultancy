@@ -34,7 +34,39 @@ export interface FormattedLead {
   id: string;
   leadNumber: string;
   branch: { id: string; code: string; name: string };
-  personal: { firstName: string; lastName: string; phone: string; email?: string };
+  personal: {
+    firstName: string;
+    lastName: string;
+    middleName?: string;
+    phone: string;
+    email?: string;
+    gender?: string;
+    dateOfBirth?: Date;
+    occupation?: string;
+  };
+  address?: {
+    permanentAddress?: string;
+    presentAddress?: string;
+  };
+  education?: {
+    lastEducation?: string;
+    faculty?: string;
+    japaneseLanguageHistory?: boolean;
+    japanesePassedYear?: string;
+    japaneseInstitute?: string;
+  };
+  preference?: {
+    preferredCollege?: string;
+    periodOfStudy?: string;
+    preferredIntake?: string;
+    previousVisaApply?: boolean;
+  };
+  family?: {
+    fatherName?: string;
+    fatherPhone?: string;
+    motherName?: string;
+    motherPhone?: string;
+  };
   source: string;
   sourceMetadata?: {
     formId?: string;
@@ -72,28 +104,22 @@ interface ActorContext {
   branch: string | null;
 }
 
-/**
- * Normalize sourceMetadata — strip undefined keys, ensure only defined strings pass through.
- */
 function normalizeSourceMetadata(
   metadata: Record<string, string | undefined> | undefined,
-): { formId?: string; referredBy?: string; utmSource?: string; utmCampaign?: string; externalRef?: string } | undefined {
+): {
+  formId?: string;
+  referredBy?: string;
+  utmSource?: string;
+  utmCampaign?: string;
+  externalRef?: string;
+} | undefined {
   if (!metadata) return undefined;
-
-  const clean: {
-    formId?: string;
-    referredBy?: string;
-    utmSource?: string;
-    utmCampaign?: string;
-    externalRef?: string;
-  } = {};
-
+  const clean: Record<string, string> = {};
   if (metadata.formId) clean.formId = metadata.formId;
   if (metadata.referredBy) clean.referredBy = metadata.referredBy;
   if (metadata.utmSource) clean.utmSource = metadata.utmSource;
   if (metadata.utmCampaign) clean.utmCampaign = metadata.utmCampaign;
   if (metadata.externalRef) clean.externalRef = metadata.externalRef;
-
   return Object.keys(clean).length > 0 ? clean : undefined;
 }
 
@@ -162,7 +188,11 @@ export class LeadService {
     const created = await leadRepository.create({
       leadNumber,
       branch: branch._id as Types.ObjectId,
-      personal: data.personal,
+      personal: data.personal as never,
+      address: data.address as never,
+      education: data.education as never,
+      preference: data.preference as never,
+      family: data.family as never,
       source: data.source as never,
       sourceMetadata: normalizeSourceMetadata(data.sourceMetadata),
       interestedProgram: data.interestedProgramId
@@ -204,7 +234,11 @@ export class LeadService {
     }
 
     const updated = await leadRepository.update(id, {
-      personal: data.personal,
+      personal: data.personal as never,
+      address: data.address as never,
+      education: data.education as never,
+      preference: data.preference as never,
+      family: data.family as never,
       interestedProgram: data.interestedProgramId
         ? new Types.ObjectId(data.interestedProgramId)
         : undefined,
@@ -295,7 +329,6 @@ export class LeadService {
   }
 
   async intakeLead(data: LeadIntakeDto, systemUserId: string): Promise<FormattedLead> {
-    // Resolve branch — use provided code or fall back to first active branch
     let branch: BranchDocument | null = null;
 
     if (data.branchCode) {
@@ -309,7 +342,6 @@ export class LeadService {
       branch = activeBranches[0]!;
     }
 
-    // At this point TypeScript knows branch is not null (both paths assign or throw)
     if (!branch) {
       throw new BusinessRuleError('Failed to resolve branch for lead intake');
     }
@@ -338,9 +370,44 @@ export class LeadService {
       personal: {
         firstName: data.firstName,
         lastName: data.lastName,
+        middleName: data.middleName,
         phone: data.phone,
         email: data.email,
-      },
+        gender: data.gender,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+        occupation: data.occupation,
+      } as never,
+      address: (data.permanentAddress || data.presentAddress)
+        ? {
+            permanentAddress: data.permanentAddress,
+            presentAddress: data.presentAddress,
+          } as never
+        : undefined,
+      education: (data.lastEducation || data.japaneseLanguageHistory !== undefined)
+        ? {
+            lastEducation: data.lastEducation,
+            faculty: data.faculty,
+            japaneseLanguageHistory: data.japaneseLanguageHistory,
+            japanesePassedYear: data.japanesePassedYear,
+            japaneseInstitute: data.japaneseInstitute,
+          } as never
+        : undefined,
+      preference: (data.preferredCollege || data.preferredIntake || data.previousVisaApply !== undefined)
+        ? {
+            preferredCollege: data.preferredCollege,
+            periodOfStudy: data.periodOfStudy,
+            preferredIntake: data.preferredIntake,
+            previousVisaApply: data.previousVisaApply,
+          } as never
+        : undefined,
+      family: (data.fatherName || data.motherName)
+        ? {
+            fatherName: data.fatherName,
+            fatherPhone: data.fatherPhone,
+            motherName: data.motherName,
+            motherPhone: data.motherPhone,
+          } as never
+        : undefined,
       source: data.source as never,
       sourceMetadata,
       preferredCounseling:
@@ -396,6 +463,10 @@ export class LeadService {
       leadNumber: lead.leadNumber,
       branch: { id: String(branch._id), code: branch.code, name: branch.name },
       personal: lead.personal,
+      address: lead.address,
+      education: lead.education,
+      preference: lead.preference,
+      family: lead.family,
       source: lead.source,
       sourceMetadata: lead.sourceMetadata,
       interestedProgram: program

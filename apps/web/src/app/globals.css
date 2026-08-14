@@ -208,3 +208,54 @@
     overflow: hidden;
   }
 }
+
+/* ─── Dialog & Form Improvements ─── */
+@layer components {
+  /* Ensure dialogs have proper min-width on desktop */
+  [data-radix-popper-content-wrapper] {
+    z-index: 50 !important;
+  }
+
+  /* Better form grid alignment in dialogs */
+  [role="dialog"] .grid {
+    align-items: start;
+  }
+
+  /* Section headers in forms */
+  [role="dialog"] h3,
+  [role="dialog"] h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  /* Compact form items in dialogs */
+  [role="dialog"] [data-slot="form-item"] {
+    margin-bottom: 0;
+  }
+
+  /* Better select trigger sizing */
+  [role="dialog"] button[role="combobox"],
+  [role="dialog"] [data-radix-select-trigger] {
+    min-width: 100%;
+  }
+}
+
+/* ─── Global Input Improvements ─── */
+@layer base {
+  /* Slightly more visible input borders */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select,
+  [role="combobox"] {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Focus state — yellow ring */
+  input:focus,
+  textarea:focus,
+  select:focus,
+  [role="combobox"]:focus {
+    border-color: hsl(var(--accent)) !important;
+  }
+}

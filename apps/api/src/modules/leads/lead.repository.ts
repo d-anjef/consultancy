@@ -8,6 +8,10 @@ export interface CreateLeadData {
   leadNumber: string;
   branch: Types.ObjectId;
   personal: LeadDocument['personal'];
+  address?: LeadDocument['address'];
+  education?: LeadDocument['education'];
+  preference?: LeadDocument['preference'];
+  family?: LeadDocument['family'];
   source: LeadSource;
   sourceMetadata?: LeadDocument['sourceMetadata'];
   interestedProgram?: Types.ObjectId;
@@ -20,6 +24,10 @@ export interface CreateLeadData {
 
 export interface UpdateLeadData {
   personal?: Partial<LeadDocument['personal']>;
+  address?: Partial<NonNullable<LeadDocument['address']>>;
+  education?: Partial<NonNullable<LeadDocument['education']>>;
+  preference?: Partial<NonNullable<LeadDocument['preference']>>;
+  family?: Partial<NonNullable<LeadDocument['family']>>;
   interestedProgram?: Types.ObjectId;
   interestedVisaCategory?: Types.ObjectId;
   preferredCounseling?: LeadDocument['preferredCounseling'];
@@ -79,6 +87,26 @@ export class LeadRepository {
         if (v !== undefined) updateOps[`personal.${k}`] = v;
       }
     }
+    if (data.address) {
+  for (const [k, v] of Object.entries(data.address)) {
+    if (v !== undefined) updateOps[`address.${k}`] = v;
+  }
+}
+if (data.education) {
+  for (const [k, v] of Object.entries(data.education)) {
+    if (v !== undefined) updateOps[`education.${k}`] = v;
+  }
+}
+if (data.preference) {
+  for (const [k, v] of Object.entries(data.preference)) {
+    if (v !== undefined) updateOps[`preference.${k}`] = v;
+  }
+}
+if (data.family) {
+  for (const [k, v] of Object.entries(data.family)) {
+    if (v !== undefined) updateOps[`family.${k}`] = v;
+  }
+}
     if (data.interestedProgram !== undefined) updateOps.interestedProgram = data.interestedProgram;
     if (data.interestedVisaCategory !== undefined) updateOps.interestedVisaCategory = data.interestedVisaCategory;
     if (data.preferredCounseling !== undefined) updateOps.preferredCounseling = data.preferredCounseling;
