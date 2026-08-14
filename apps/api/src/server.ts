@@ -23,7 +23,7 @@ async function bootstrap(): Promise<void> {
   const app = createApp();
 
   // ─── Start listening ─────
-  const server = app.listen(env.PORT, () => {
+  const server = app.listen(env.PORT, '0.0.0.0', () => {
     logger.info(`Server running at ${env.API_BASE_URL}`);
     logger.info(`Health check at ${env.API_BASE_URL}/api/health`);
     logger.info(`API at ${env.API_BASE_URL}/api/${env.API_VERSION}`);
@@ -33,7 +33,7 @@ async function bootstrap(): Promise<void> {
   server.headersTimeout = 66000;
 
   // ─── Graceful Shutdown ─────
-  const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
+  const signals = ['SIGTERM', 'SIGINT'] as const;
 
   for (const signal of signals) {
     process.on(signal, async () => {
