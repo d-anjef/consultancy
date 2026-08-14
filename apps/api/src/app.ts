@@ -43,6 +43,9 @@ import { teacherRoutes } from './modules/teachers/teacher.routes.js';
 import { classRoutes } from './modules/classes/class.routes.js';
 import { learningMaterialRoutes } from './modules/learning-materials/learning-material.routes.js';
 
+import { attendanceRoutes } from './modules/attendance/attendance.routes.js';
+import { qrRoutes } from './modules/qr/qr.routes.js';
+
 export function createApp(): express.Application {
   const app = express();
 
@@ -199,6 +202,9 @@ app.use(`${API_PREFIX}/teachers`, teacherRoutes);
 app.use(`${API_PREFIX}/classes`, classRoutes);
 app.use(`${API_PREFIX}/learning-materials`, learningMaterialRoutes);
 
+
+app.use(`${API_PREFIX}/attendance`, attendanceRoutes);
+app.use(`${API_PREFIX}/qr`, qrRoutes);
 
 
   // ─── 404 Handler ─────
