@@ -36,6 +36,13 @@ import { counselingRoutes } from './modules/counseling/counseling.routes.js';
 import { documentRoutes } from './modules/documents/document.routes.js';
 import { financeRoutes } from './modules/finance/finance.routes.js';
 
+import { languageLevelRoutes } from './modules/language-levels/language-level.routes.js';
+import { journeyRoutes } from './modules/journey/journey.routes.js';
+
+import { teacherRoutes } from './modules/teachers/teacher.routes.js';
+import { classRoutes } from './modules/classes/class.routes.js';
+import { learningMaterialRoutes } from './modules/learning-materials/learning-material.routes.js';
+
 export function createApp(): express.Application {
   const app = express();
 
@@ -183,6 +190,17 @@ app.use(`${API_PREFIX}/visa-categories`, visaCategoryRoutes);
 
 app.use(`${API_PREFIX}/documents`, documentRoutes);
 app.use(`${API_PREFIX}/finance`, financeRoutes);
+
+app.use(`${API_PREFIX}/language-levels`, languageLevelRoutes);
+app.use(`${API_PREFIX}`, journeyRoutes);
+
+
+app.use(`${API_PREFIX}/teachers`, teacherRoutes);
+app.use(`${API_PREFIX}/classes`, classRoutes);
+app.use(`${API_PREFIX}/learning-materials`, learningMaterialRoutes);
+
+
+
   // ─── 404 Handler ─────
   app.use(notFoundHandler);
 

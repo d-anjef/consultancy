@@ -21,8 +21,10 @@ import {
   User,
   QrCode,
   Stamp,
+  Languages,
 } from 'lucide-react';
 import { PERMISSION_CODES, type PermissionCode } from '@consultancy/config';
+import {MapPin} from 'lucide-react';
 
 export interface NavItem {
   label: string;
@@ -87,6 +89,12 @@ export const STAFF_NAVIGATION: NavSection[] = [
         icon: BookOpen,
         requireAny: [PERMISSION_CODES.VIEW_CLASS, PERMISSION_CODES.VIEW_OWN_CLASSES],
       },
+       {
+      label: 'Teachers Hub',  
+      href: '/teachers-hub',
+      icon: BookOpen,
+      requireAny: [PERMISSION_CODES.VIEW_TEACHER, PERMISSION_CODES.VIEW_OWN_CLASSES],
+    },
       {
         label: 'Attendance',
         href: '/attendance',
@@ -155,6 +163,12 @@ export const STAFF_NAVIGATION: NavSection[] = [
         icon: Stamp,
         requiredPermissions: [PERMISSION_CODES.MANAGE_VISA_CATEGORIES],
       },
+      {
+      label: 'Language Levels',   
+      href: '/language-levels',
+      icon: Languages,
+      requiredPermissions: [PERMISSION_CODES.MANAGE_SETTINGS],
+    },
     ],
   },
   {
@@ -191,14 +205,19 @@ export const STAFF_NAVIGATION: NavSection[] = [
         requiredPermissions: [PERMISSION_CODES.MANAGE_SETTINGS],
       },
     ],
+
+    
   },
 ];
+
+
 
 export const STUDENT_NAVIGATION: NavSection[] = [
   {
     items: [
       { label: 'Dashboard', href: '/my/dashboard', icon: LayoutDashboard },
       { label: 'My Profile', href: '/my/profile', icon: User },
+      {label: 'My Journey', href: '/my/journey', icon: MapPin},
       { label: 'My Application', href: '/my/application', icon: FileText },
       { label: 'Documents', href: '/my/documents', icon: Files },
       { label: 'Fees', href: '/my/fees', icon: Wallet },
@@ -206,6 +225,7 @@ export const STUDENT_NAVIGATION: NavSection[] = [
       { label: 'Attendance', href: '/my/attendance', icon: ClipboardList },
       { label: 'Notifications', href: '/my/notifications', icon: Bell },
       { label: 'My QR', href: '/my/qr', icon: QrCode },
+      
     ],
   },
 ];

@@ -14,6 +14,7 @@ import {
   FileText,
   ShieldAlert,
 } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useStudent } from '@/hooks/useStudents';
 import { useApplications } from '@/hooks/useApplications';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -241,6 +242,15 @@ export default function StudentDetailPage() {
             </Card>
           )}
         </div>
+
+        {/*Journey Tracker */}
+        <Button 
+        variant="outline"
+        onClick={() => router.push(`/students/${student.id}/journey`)}
+        >
+          <MapPin className="h-4 w-4" />
+          Journey
+        </Button>
 
         {/* Right column — 1/3 width */}
         <div className="space-y-6">
