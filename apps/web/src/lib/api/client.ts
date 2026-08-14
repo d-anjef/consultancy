@@ -8,7 +8,9 @@ import { siteConfig } from '@/config/site';
  * - Base URL points to Next.js proxy (/api/v1/*) which forwards to backend.
  */
 const client: AxiosInstance = axios.create({
-  baseURL: '/api/v1',
+  baseURL: typeof window !== 'undefined'
+    ? (process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1')
+    : (process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1'),
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

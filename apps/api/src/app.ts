@@ -125,9 +125,11 @@ export function createApp(): express.Application {
         touchAfter: 24 * 3600,
       }),
       cookie: {
-        httpOnly: true,
-        secure: env.COOKIE_SECURE,
-        sameSite: env.COOKIE_SAMESITE,
+  httpOnly: true,
+  secure: env.COOKIE_SECURE,
+  sameSite: env.COOKIE_SAMESITE === 'none' ? 'none' as const
+    : env.COOKIE_SAMESITE === 'strict' ? 'strict' as const
+    : 'lax' as const,
         maxAge: env.SESSION_MAX_AGE_MS,
         domain: env.isProduction ? env.COOKIE_DOMAIN : undefined,
         path: '/',
