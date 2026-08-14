@@ -1,0 +1,769 @@
+/**
+ * Permission Registry
+ *
+ * All 78 permissions in the system. Grouped by category.
+ * Permissions are checked server-side by the `authorize` middleware.
+ *
+ * DO NOT rename existing codes — they are stored in the database
+ * and referenced by role assignments.
+ */
+
+export const PERMISSION_CODES = {
+  // ─── PROFILE & ACCOUNT ─────────────────────────
+  VIEW_OWN_PROFILE: 'VIEW_OWN_PROFILE',
+  EDIT_OWN_PROFILE: 'EDIT_OWN_PROFILE',
+  CHANGE_OWN_PASSWORD: 'CHANGE_OWN_PASSWORD',
+  MANAGE_OWN_MFA: 'MANAGE_OWN_MFA',
+
+  // ─── USER MANAGEMENT ───────────────────────────
+  VIEW_USERS: 'VIEW_USERS',
+  CREATE_USER_ADMIN: 'CREATE_USER_ADMIN',
+  CREATE_USER_BRANCH_MANAGER: 'CREATE_USER_BRANCH_MANAGER',
+  CREATE_USER_COUNSELOR: 'CREATE_USER_COUNSELOR',
+  CREATE_USER_RECEPTIONIST: 'CREATE_USER_RECEPTIONIST',
+  CREATE_USER_TEACHER: 'CREATE_USER_TEACHER',
+  CREATE_USER_STUDENT: 'CREATE_USER_STUDENT',
+  EDIT_USER: 'EDIT_USER',
+  DEACTIVATE_USER: 'DEACTIVATE_USER',
+  MANAGE_ROLES: 'MANAGE_ROLES',
+  MANAGE_PERMISSIONS: 'MANAGE_PERMISSIONS',
+
+  // ─── BRANCH ────────────────────────────────────
+  VIEW_ALL_BRANCHES: 'VIEW_ALL_BRANCHES',
+  VIEW_OWN_BRANCH: 'VIEW_OWN_BRANCH',
+  CREATE_BRANCH: 'CREATE_BRANCH',
+  EDIT_BRANCH: 'EDIT_BRANCH',
+  MANAGE_BRANCH: 'MANAGE_BRANCH',
+
+  // ─── LEADS ─────────────────────────────────────
+  VIEW_LEAD: 'VIEW_LEAD',
+  CREATE_LEAD: 'CREATE_LEAD',
+  EDIT_LEAD: 'EDIT_LEAD',
+  ASSIGN_LEAD: 'ASSIGN_LEAD',
+  DELETE_LEAD: 'DELETE_LEAD',
+  CONVERT_LEAD: 'CONVERT_LEAD',
+
+  // ─── COUNSELING ────────────────────────────────
+  VIEW_COUNSELING: 'VIEW_COUNSELING',
+  CREATE_COUNSELING: 'CREATE_COUNSELING',
+  EDIT_COUNSELING: 'EDIT_COUNSELING',
+  CANCEL_COUNSELING: 'CANCEL_COUNSELING',
+  RECORD_COUNSELING_OUTCOME: 'RECORD_COUNSELING_OUTCOME',
+
+  // ─── STUDENTS ──────────────────────────────────
+  VIEW_STUDENT: 'VIEW_STUDENT',
+  VIEW_OWN_STUDENT_PROFILE: 'VIEW_OWN_STUDENT_PROFILE',
+  CREATE_STUDENT: 'CREATE_STUDENT',
+  EDIT_STUDENT: 'EDIT_STUDENT',
+  EDIT_OWN_STUDENT_PROFILE: 'EDIT_OWN_STUDENT_PROFILE',
+  ARCHIVE_STUDENT: 'ARCHIVE_STUDENT',
+  TRANSFER_STUDENT_BRANCH: 'TRANSFER_STUDENT_BRANCH',
+
+  // ─── APPLICATIONS ──────────────────────────────
+  VIEW_APPLICATION: 'VIEW_APPLICATION',
+  VIEW_OWN_APPLICATION: 'VIEW_OWN_APPLICATION',
+  CREATE_APPLICATION: 'CREATE_APPLICATION',
+  EDIT_APPLICATION: 'EDIT_APPLICATION',
+  CHANGE_APPLICATION_STATUS: 'CHANGE_APPLICATION_STATUS',
+  CANCEL_APPLICATION: 'CANCEL_APPLICATION',
+
+  // ─── DOCUMENTS ─────────────────────────────────
+  VIEW_DOCUMENT: 'VIEW_DOCUMENT',
+  VIEW_OWN_DOCUMENT_STATUS: 'VIEW_OWN_DOCUMENT_STATUS',
+  UPLOAD_DOCUMENT: 'UPLOAD_DOCUMENT',
+  REVIEW_DOCUMENT: 'REVIEW_DOCUMENT',
+  VERIFY_DOCUMENT: 'VERIFY_DOCUMENT',
+  REJECT_DOCUMENT: 'REJECT_DOCUMENT',
+  FINAL_APPROVE_DOCUMENT: 'FINAL_APPROVE_DOCUMENT',
+  REQUEST_RESUBMISSION: 'REQUEST_RESUBMISSION',
+
+  // ─── FINANCE ───────────────────────────────────
+  VIEW_FINANCE: 'VIEW_FINANCE',
+  VIEW_OWN_FEES: 'VIEW_OWN_FEES',
+  CREATE_INVOICE: 'CREATE_INVOICE',
+  EDIT_INVOICE: 'EDIT_INVOICE',
+  CREATE_PAYMENT: 'CREATE_PAYMENT',
+  EDIT_PAYMENT: 'EDIT_PAYMENT',
+  VOID_PAYMENT: 'VOID_PAYMENT',
+  VIEW_FINANCIAL_REPORTS: 'VIEW_FINANCIAL_REPORTS',
+
+  // ─── ATTENDANCE ────────────────────────────────
+  VIEW_ATTENDANCE: 'VIEW_ATTENDANCE',
+  VIEW_OWN_ATTENDANCE: 'VIEW_OWN_ATTENDANCE',
+  RECORD_ATTENDANCE: 'RECORD_ATTENDANCE',
+  EDIT_ATTENDANCE: 'EDIT_ATTENDANCE',
+  SCAN_QR_ATTENDANCE: 'SCAN_QR_ATTENDANCE',
+  VIEW_ATTENDANCE_REPORTS: 'VIEW_ATTENDANCE_REPORTS',
+
+  // ─── CLASSES & TEACHERS ────────────────────────
+  VIEW_CLASS: 'VIEW_CLASS',
+  VIEW_OWN_CLASSES: 'VIEW_OWN_CLASSES',
+  CREATE_CLASS: 'CREATE_CLASS',
+  EDIT_CLASS: 'EDIT_CLASS',
+  VIEW_TEACHER: 'VIEW_TEACHER',
+  MANAGE_TEACHER: 'MANAGE_TEACHER',
+
+  // ─── TASKS / FOLLOW-UPS ────────────────────────
+  VIEW_TASK: 'VIEW_TASK',
+  CREATE_TASK: 'CREATE_TASK',
+  EDIT_TASK: 'EDIT_TASK',
+  COMPLETE_TASK: 'COMPLETE_TASK',
+  ASSIGN_TASK: 'ASSIGN_TASK',
+
+  // ─── NOTIFICATIONS ─────────────────────────────
+  VIEW_NOTIFICATION: 'VIEW_NOTIFICATION',
+  MANAGE_NOTIFICATION: 'MANAGE_NOTIFICATION',
+  SEND_NOTIFICATION: 'SEND_NOTIFICATION',
+  MANAGE_NOTIFICATION_TEMPLATES: 'MANAGE_NOTIFICATION_TEMPLATES',
+  MANAGE_OWN_NOTIFICATION_PREFERENCES: 'MANAGE_OWN_NOTIFICATION_PREFERENCES',
+
+  // ─── REPORTS & AUDIT ───────────────────────────
+  VIEW_REPORT: 'VIEW_REPORT',
+  EXPORT_REPORT: 'EXPORT_REPORT',
+  VIEW_AUDIT_LOG: 'VIEW_AUDIT_LOG',
+
+  // ─── SYSTEM ────────────────────────────────────
+  MANAGE_SETTINGS: 'MANAGE_SETTINGS',
+  MANAGE_PROGRAMS: 'MANAGE_PROGRAMS',
+  MANAGE_VISA_CATEGORIES: 'MANAGE_VISA_CATEGORIES',
+  VIEW_HEALTH: 'VIEW_HEALTH',
+  SYSTEM_OVERRIDE: 'SYSTEM_OVERRIDE',
+} as const;
+
+export type PermissionCode = (typeof PERMISSION_CODES)[keyof typeof PERMISSION_CODES];
+
+export const ALL_PERMISSION_CODES: PermissionCode[] = Object.values(PERMISSION_CODES);
+
+export const PERMISSION_CATEGORIES = {
+  PROFILE: 'PROFILE',
+  USER: 'USER',
+  BRANCH: 'BRANCH',
+  LEAD: 'LEAD',
+  COUNSELING: 'COUNSELING',
+  STUDENT: 'STUDENT',
+  APPLICATION: 'APPLICATION',
+  DOCUMENT: 'DOCUMENT',
+  FINANCE: 'FINANCE',
+  ATTENDANCE: 'ATTENDANCE',
+  CLASS: 'CLASS',
+  TEACHER: 'TEACHER',
+  TASK: 'TASK',
+  NOTIFICATION: 'NOTIFICATION',
+  REPORT: 'REPORT',
+  AUDIT: 'AUDIT',
+  SYSTEM: 'SYSTEM',
+} as const;
+
+export type PermissionCategory =
+  (typeof PERMISSION_CATEGORIES)[keyof typeof PERMISSION_CATEGORIES];
+
+export const PERMISSION_METADATA: Record<
+  PermissionCode,
+  { category: PermissionCategory; description: string }
+> = {
+  // Profile
+  [PERMISSION_CODES.VIEW_OWN_PROFILE]: {
+    category: 'PROFILE',
+    description: 'View own user profile',
+  },
+  [PERMISSION_CODES.EDIT_OWN_PROFILE]: {
+    category: 'PROFILE',
+    description: 'Edit own user profile',
+  },
+  [PERMISSION_CODES.CHANGE_OWN_PASSWORD]: {
+    category: 'PROFILE',
+    description: 'Change own password',
+  },
+  [PERMISSION_CODES.MANAGE_OWN_MFA]: {
+    category: 'PROFILE',
+    description: 'Enable/disable own multi-factor authentication',
+  },
+
+  // Users
+  [PERMISSION_CODES.VIEW_USERS]: {
+    category: 'USER',
+    description: 'View user list and details',
+  },
+  [PERMISSION_CODES.CREATE_USER_ADMIN]: {
+    category: 'USER',
+    description: 'Create Admin users',
+  },
+  [PERMISSION_CODES.CREATE_USER_BRANCH_MANAGER]: {
+    category: 'USER',
+    description: 'Create Branch Manager users',
+  },
+  [PERMISSION_CODES.CREATE_USER_COUNSELOR]: {
+    category: 'USER',
+    description: 'Create Counselor users',
+  },
+  [PERMISSION_CODES.CREATE_USER_RECEPTIONIST]: {
+    category: 'USER',
+    description: 'Create Receptionist users',
+  },
+  [PERMISSION_CODES.CREATE_USER_TEACHER]: {
+    category: 'USER',
+    description: 'Create Teacher users',
+  },
+  [PERMISSION_CODES.CREATE_USER_STUDENT]: {
+    category: 'USER',
+    description: 'Create Student user accounts',
+  },
+  [PERMISSION_CODES.EDIT_USER]: {
+    category: 'USER',
+    description: 'Edit user accounts',
+  },
+  [PERMISSION_CODES.DEACTIVATE_USER]: {
+    category: 'USER',
+    description: 'Deactivate user accounts',
+  },
+  [PERMISSION_CODES.MANAGE_ROLES]: {
+    category: 'USER',
+    description: 'Create, edit, delete roles',
+  },
+  [PERMISSION_CODES.MANAGE_PERMISSIONS]: {
+    category: 'USER',
+    description: 'Assign permissions to roles',
+  },
+
+  // Branch
+  [PERMISSION_CODES.VIEW_ALL_BRANCHES]: {
+    category: 'BRANCH',
+    description: 'View all branches in the organization',
+  },
+  [PERMISSION_CODES.VIEW_OWN_BRANCH]: {
+    category: 'BRANCH',
+    description: 'View own assigned branch',
+  },
+  [PERMISSION_CODES.CREATE_BRANCH]: {
+    category: 'BRANCH',
+    description: 'Create new branches',
+  },
+  [PERMISSION_CODES.EDIT_BRANCH]: {
+    category: 'BRANCH',
+    description: 'Edit branch information',
+  },
+  [PERMISSION_CODES.MANAGE_BRANCH]: {
+    category: 'BRANCH',
+    description: 'Full branch management (deactivate, delete)',
+  },
+
+  // Lead
+  [PERMISSION_CODES.VIEW_LEAD]: { category: 'LEAD', description: 'View leads' },
+  [PERMISSION_CODES.CREATE_LEAD]: { category: 'LEAD', description: 'Create leads' },
+  [PERMISSION_CODES.EDIT_LEAD]: { category: 'LEAD', description: 'Edit leads' },
+  [PERMISSION_CODES.ASSIGN_LEAD]: {
+    category: 'LEAD',
+    description: 'Assign leads to counselors',
+  },
+  [PERMISSION_CODES.DELETE_LEAD]: { category: 'LEAD', description: 'Delete leads' },
+  [PERMISSION_CODES.CONVERT_LEAD]: {
+    category: 'LEAD',
+    description: 'Convert lead to student',
+  },
+
+  // Counseling
+  [PERMISSION_CODES.VIEW_COUNSELING]: {
+    category: 'COUNSELING',
+    description: 'View counseling sessions',
+  },
+  [PERMISSION_CODES.CREATE_COUNSELING]: {
+    category: 'COUNSELING',
+    description: 'Schedule counseling sessions',
+  },
+  [PERMISSION_CODES.EDIT_COUNSELING]: {
+    category: 'COUNSELING',
+    description: 'Edit counseling sessions',
+  },
+  [PERMISSION_CODES.CANCEL_COUNSELING]: {
+    category: 'COUNSELING',
+    description: 'Cancel counseling sessions',
+  },
+  [PERMISSION_CODES.RECORD_COUNSELING_OUTCOME]: {
+    category: 'COUNSELING',
+    description: 'Record counseling outcome and notes',
+  },
+
+  // Student
+  [PERMISSION_CODES.VIEW_STUDENT]: {
+    category: 'STUDENT',
+    description: 'View student information (staff)',
+  },
+  [PERMISSION_CODES.VIEW_OWN_STUDENT_PROFILE]: {
+    category: 'STUDENT',
+    description: 'View own student profile (student only)',
+  },
+  [PERMISSION_CODES.CREATE_STUDENT]: {
+    category: 'STUDENT',
+    description: 'Register new students',
+  },
+  [PERMISSION_CODES.EDIT_STUDENT]: {
+    category: 'STUDENT',
+    description: 'Edit student records (staff)',
+  },
+  [PERMISSION_CODES.EDIT_OWN_STUDENT_PROFILE]: {
+    category: 'STUDENT',
+    description: 'Edit own permitted profile fields (student only)',
+  },
+  [PERMISSION_CODES.ARCHIVE_STUDENT]: {
+    category: 'STUDENT',
+    description: 'Archive student records',
+  },
+  [PERMISSION_CODES.TRANSFER_STUDENT_BRANCH]: {
+    category: 'STUDENT',
+    description: 'Transfer student to different branch',
+  },
+
+  // Application
+  [PERMISSION_CODES.VIEW_APPLICATION]: {
+    category: 'APPLICATION',
+    description: 'View applications (staff)',
+  },
+  [PERMISSION_CODES.VIEW_OWN_APPLICATION]: {
+    category: 'APPLICATION',
+    description: 'View own application (student)',
+  },
+  [PERMISSION_CODES.CREATE_APPLICATION]: {
+    category: 'APPLICATION',
+    description: 'Create applications',
+  },
+  [PERMISSION_CODES.EDIT_APPLICATION]: {
+    category: 'APPLICATION',
+    description: 'Edit applications',
+  },
+  [PERMISSION_CODES.CHANGE_APPLICATION_STATUS]: {
+    category: 'APPLICATION',
+    description: 'Transition application status',
+  },
+  [PERMISSION_CODES.CANCEL_APPLICATION]: {
+    category: 'APPLICATION',
+    description: 'Cancel applications',
+  },
+
+  // Document
+  [PERMISSION_CODES.VIEW_DOCUMENT]: {
+    category: 'DOCUMENT',
+    description: 'View documents (staff)',
+  },
+  [PERMISSION_CODES.VIEW_OWN_DOCUMENT_STATUS]: {
+    category: 'DOCUMENT',
+    description: 'View own document status (student)',
+  },
+  [PERMISSION_CODES.UPLOAD_DOCUMENT]: {
+    category: 'DOCUMENT',
+    description: 'Upload documents (Admin only)',
+  },
+  [PERMISSION_CODES.REVIEW_DOCUMENT]: {
+    category: 'DOCUMENT',
+    description: 'Mark documents under review',
+  },
+  [PERMISSION_CODES.VERIFY_DOCUMENT]: {
+    category: 'DOCUMENT',
+    description: 'Verify documents (Branch Manager)',
+  },
+  [PERMISSION_CODES.REJECT_DOCUMENT]: {
+    category: 'DOCUMENT',
+    description: 'Reject documents',
+  },
+  [PERMISSION_CODES.FINAL_APPROVE_DOCUMENT]: {
+    category: 'DOCUMENT',
+    description: 'Final document approval (Admin/Super Admin only)',
+  },
+  [PERMISSION_CODES.REQUEST_RESUBMISSION]: {
+    category: 'DOCUMENT',
+    description: 'Request document resubmission',
+  },
+
+  // Finance
+  [PERMISSION_CODES.VIEW_FINANCE]: {
+    category: 'FINANCE',
+    description: 'View invoices and payments',
+  },
+  [PERMISSION_CODES.VIEW_OWN_FEES]: {
+    category: 'FINANCE',
+    description: 'View own fees and payments (student)',
+  },
+  [PERMISSION_CODES.CREATE_INVOICE]: {
+    category: 'FINANCE',
+    description: 'Create invoices',
+  },
+  [PERMISSION_CODES.EDIT_INVOICE]: {
+    category: 'FINANCE',
+    description: 'Edit invoices',
+  },
+  [PERMISSION_CODES.CREATE_PAYMENT]: {
+    category: 'FINANCE',
+    description: 'Record payments',
+  },
+  [PERMISSION_CODES.EDIT_PAYMENT]: {
+    category: 'FINANCE',
+    description: 'Edit payment records',
+  },
+  [PERMISSION_CODES.VOID_PAYMENT]: {
+    category: 'FINANCE',
+    description: 'Void payment records',
+  },
+  [PERMISSION_CODES.VIEW_FINANCIAL_REPORTS]: {
+    category: 'FINANCE',
+    description: 'View financial reports',
+  },
+
+  // Attendance
+  [PERMISSION_CODES.VIEW_ATTENDANCE]: {
+    category: 'ATTENDANCE',
+    description: 'View attendance records',
+  },
+  [PERMISSION_CODES.VIEW_OWN_ATTENDANCE]: {
+    category: 'ATTENDANCE',
+    description: 'View own attendance',
+  },
+  [PERMISSION_CODES.RECORD_ATTENDANCE]: {
+    category: 'ATTENDANCE',
+    description: 'Record attendance manually',
+  },
+  [PERMISSION_CODES.EDIT_ATTENDANCE]: {
+    category: 'ATTENDANCE',
+    description: 'Edit attendance records',
+  },
+  [PERMISSION_CODES.SCAN_QR_ATTENDANCE]: {
+    category: 'ATTENDANCE',
+    description: 'Scan QR codes to record attendance',
+  },
+  [PERMISSION_CODES.VIEW_ATTENDANCE_REPORTS]: {
+    category: 'ATTENDANCE',
+    description: 'View attendance reports',
+  },
+
+  // Class
+  [PERMISSION_CODES.VIEW_CLASS]: { category: 'CLASS', description: 'View classes' },
+  [PERMISSION_CODES.VIEW_OWN_CLASSES]: {
+    category: 'CLASS',
+    description: 'View own assigned/enrolled classes',
+  },
+  [PERMISSION_CODES.CREATE_CLASS]: {
+    category: 'CLASS',
+    description: 'Create classes',
+  },
+  [PERMISSION_CODES.EDIT_CLASS]: { category: 'CLASS', description: 'Edit classes' },
+
+  // Teacher
+  [PERMISSION_CODES.VIEW_TEACHER]: {
+    category: 'TEACHER',
+    description: 'View teachers',
+  },
+  [PERMISSION_CODES.MANAGE_TEACHER]: {
+    category: 'TEACHER',
+    description: 'Manage teacher profiles',
+  },
+
+  // Task
+  [PERMISSION_CODES.VIEW_TASK]: { category: 'TASK', description: 'View tasks' },
+  [PERMISSION_CODES.CREATE_TASK]: { category: 'TASK', description: 'Create tasks' },
+  [PERMISSION_CODES.EDIT_TASK]: { category: 'TASK', description: 'Edit tasks' },
+  [PERMISSION_CODES.COMPLETE_TASK]: {
+    category: 'TASK',
+    description: 'Complete tasks',
+  },
+  [PERMISSION_CODES.ASSIGN_TASK]: {
+    category: 'TASK',
+    description: 'Assign tasks to users',
+  },
+
+  // Notification
+  [PERMISSION_CODES.VIEW_NOTIFICATION]: {
+    category: 'NOTIFICATION',
+    description: 'View own notifications',
+  },
+  [PERMISSION_CODES.MANAGE_NOTIFICATION]: {
+    category: 'NOTIFICATION',
+    description: 'Manage notification system',
+  },
+  [PERMISSION_CODES.SEND_NOTIFICATION]: {
+    category: 'NOTIFICATION',
+    description: 'Send announcements',
+  },
+  [PERMISSION_CODES.MANAGE_NOTIFICATION_TEMPLATES]: {
+    category: 'NOTIFICATION',
+    description: 'Manage notification templates',
+  },
+  [PERMISSION_CODES.MANAGE_OWN_NOTIFICATION_PREFERENCES]: {
+    category: 'NOTIFICATION',
+    description: 'Configure own notification preferences',
+  },
+
+  // Report
+  [PERMISSION_CODES.VIEW_REPORT]: {
+    category: 'REPORT',
+    description: 'View reports',
+  },
+  [PERMISSION_CODES.EXPORT_REPORT]: {
+    category: 'REPORT',
+    description: 'Export reports',
+  },
+
+  // Audit
+  [PERMISSION_CODES.VIEW_AUDIT_LOG]: {
+    category: 'AUDIT',
+    description: 'View audit logs',
+  },
+
+  // System
+  [PERMISSION_CODES.MANAGE_SETTINGS]: {
+    category: 'SYSTEM',
+    description: 'Manage system settings',
+  },
+  [PERMISSION_CODES.MANAGE_PROGRAMS]: {
+    category: 'SYSTEM',
+    description: 'Manage programs',
+  },
+  [PERMISSION_CODES.MANAGE_VISA_CATEGORIES]: {
+    category: 'SYSTEM',
+    description: 'Manage visa categories',
+  },
+  [PERMISSION_CODES.VIEW_HEALTH]: {
+    category: 'SYSTEM',
+    description: 'View system health',
+  },
+  [PERMISSION_CODES.SYSTEM_OVERRIDE]: {
+    category: 'SYSTEM',
+    description: 'Emergency system override (Super Admin only)',
+  },
+};
+
+/**
+ * Role → Permission mapping.
+ * This is the source of truth for role seeding.
+ */
+export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
+  SUPER_ADMIN: ALL_PERMISSION_CODES,
+
+  ADMIN: [
+    PERMISSION_CODES.VIEW_OWN_PROFILE,
+    PERMISSION_CODES.EDIT_OWN_PROFILE,
+    PERMISSION_CODES.CHANGE_OWN_PASSWORD,
+    PERMISSION_CODES.MANAGE_OWN_MFA,
+    PERMISSION_CODES.VIEW_USERS,
+    PERMISSION_CODES.CREATE_USER_BRANCH_MANAGER,
+    PERMISSION_CODES.CREATE_USER_COUNSELOR,
+    PERMISSION_CODES.CREATE_USER_RECEPTIONIST,
+    PERMISSION_CODES.CREATE_USER_TEACHER,
+    PERMISSION_CODES.CREATE_USER_STUDENT,
+    PERMISSION_CODES.EDIT_USER,
+    PERMISSION_CODES.DEACTIVATE_USER,
+    PERMISSION_CODES.VIEW_ALL_BRANCHES,
+    PERMISSION_CODES.VIEW_OWN_BRANCH,
+    PERMISSION_CODES.EDIT_BRANCH,
+    PERMISSION_CODES.VIEW_LEAD,
+    PERMISSION_CODES.CREATE_LEAD,
+    PERMISSION_CODES.EDIT_LEAD,
+    PERMISSION_CODES.ASSIGN_LEAD,
+    PERMISSION_CODES.DELETE_LEAD,
+    PERMISSION_CODES.CONVERT_LEAD,
+    PERMISSION_CODES.VIEW_COUNSELING,
+    PERMISSION_CODES.CREATE_COUNSELING,
+    PERMISSION_CODES.EDIT_COUNSELING,
+    PERMISSION_CODES.CANCEL_COUNSELING,
+    PERMISSION_CODES.RECORD_COUNSELING_OUTCOME,
+    PERMISSION_CODES.VIEW_STUDENT,
+    PERMISSION_CODES.CREATE_STUDENT,
+    PERMISSION_CODES.EDIT_STUDENT,
+    PERMISSION_CODES.ARCHIVE_STUDENT,
+    PERMISSION_CODES.TRANSFER_STUDENT_BRANCH,
+    PERMISSION_CODES.VIEW_APPLICATION,
+    PERMISSION_CODES.CREATE_APPLICATION,
+    PERMISSION_CODES.EDIT_APPLICATION,
+    PERMISSION_CODES.CHANGE_APPLICATION_STATUS,
+    PERMISSION_CODES.CANCEL_APPLICATION,
+    PERMISSION_CODES.VIEW_DOCUMENT,
+    PERMISSION_CODES.UPLOAD_DOCUMENT,
+    PERMISSION_CODES.REVIEW_DOCUMENT,
+    PERMISSION_CODES.VERIFY_DOCUMENT,
+    PERMISSION_CODES.REJECT_DOCUMENT,
+    PERMISSION_CODES.FINAL_APPROVE_DOCUMENT,
+    PERMISSION_CODES.REQUEST_RESUBMISSION,
+    PERMISSION_CODES.VIEW_FINANCE,
+    PERMISSION_CODES.CREATE_INVOICE,
+    PERMISSION_CODES.EDIT_INVOICE,
+    PERMISSION_CODES.CREATE_PAYMENT,
+    PERMISSION_CODES.EDIT_PAYMENT,
+    PERMISSION_CODES.VOID_PAYMENT,
+    PERMISSION_CODES.VIEW_FINANCIAL_REPORTS,
+    PERMISSION_CODES.VIEW_ATTENDANCE,
+    PERMISSION_CODES.RECORD_ATTENDANCE,
+    PERMISSION_CODES.EDIT_ATTENDANCE,
+    PERMISSION_CODES.SCAN_QR_ATTENDANCE,
+    PERMISSION_CODES.VIEW_ATTENDANCE_REPORTS,
+    PERMISSION_CODES.VIEW_CLASS,
+    PERMISSION_CODES.CREATE_CLASS,
+    PERMISSION_CODES.EDIT_CLASS,
+    PERMISSION_CODES.VIEW_TEACHER,
+    PERMISSION_CODES.MANAGE_TEACHER,
+    PERMISSION_CODES.VIEW_TASK,
+    PERMISSION_CODES.CREATE_TASK,
+    PERMISSION_CODES.EDIT_TASK,
+    PERMISSION_CODES.COMPLETE_TASK,
+    PERMISSION_CODES.ASSIGN_TASK,
+    PERMISSION_CODES.VIEW_NOTIFICATION,
+    PERMISSION_CODES.MANAGE_NOTIFICATION,
+    PERMISSION_CODES.SEND_NOTIFICATION,
+    PERMISSION_CODES.MANAGE_NOTIFICATION_TEMPLATES,
+    PERMISSION_CODES.MANAGE_OWN_NOTIFICATION_PREFERENCES,
+    PERMISSION_CODES.VIEW_REPORT,
+    PERMISSION_CODES.EXPORT_REPORT,
+    PERMISSION_CODES.VIEW_AUDIT_LOG,
+    PERMISSION_CODES.MANAGE_PROGRAMS,
+    PERMISSION_CODES.MANAGE_VISA_CATEGORIES,
+    PERMISSION_CODES.VIEW_HEALTH,
+  ],
+
+  BRANCH_MANAGER: [
+    PERMISSION_CODES.VIEW_OWN_PROFILE,
+    PERMISSION_CODES.EDIT_OWN_PROFILE,
+    PERMISSION_CODES.CHANGE_OWN_PASSWORD,
+    PERMISSION_CODES.MANAGE_OWN_MFA,
+    PERMISSION_CODES.VIEW_USERS,
+    PERMISSION_CODES.CREATE_USER_COUNSELOR,
+    PERMISSION_CODES.CREATE_USER_RECEPTIONIST,
+    PERMISSION_CODES.CREATE_USER_TEACHER,
+    PERMISSION_CODES.CREATE_USER_STUDENT,
+    PERMISSION_CODES.EDIT_USER,
+    PERMISSION_CODES.DEACTIVATE_USER,
+    PERMISSION_CODES.VIEW_OWN_BRANCH,
+    PERMISSION_CODES.VIEW_LEAD,
+    PERMISSION_CODES.CREATE_LEAD,
+    PERMISSION_CODES.EDIT_LEAD,
+    PERMISSION_CODES.ASSIGN_LEAD,
+    PERMISSION_CODES.CONVERT_LEAD,
+    PERMISSION_CODES.VIEW_COUNSELING,
+    PERMISSION_CODES.CREATE_COUNSELING,
+    PERMISSION_CODES.EDIT_COUNSELING,
+    PERMISSION_CODES.CANCEL_COUNSELING,
+    PERMISSION_CODES.RECORD_COUNSELING_OUTCOME,
+    PERMISSION_CODES.VIEW_STUDENT,
+    PERMISSION_CODES.CREATE_STUDENT,
+    PERMISSION_CODES.EDIT_STUDENT,
+    PERMISSION_CODES.TRANSFER_STUDENT_BRANCH,
+    PERMISSION_CODES.VIEW_APPLICATION,
+    PERMISSION_CODES.CREATE_APPLICATION,
+    PERMISSION_CODES.EDIT_APPLICATION,
+    PERMISSION_CODES.CHANGE_APPLICATION_STATUS,
+    PERMISSION_CODES.VIEW_DOCUMENT,
+    PERMISSION_CODES.UPLOAD_DOCUMENT,
+    PERMISSION_CODES.REVIEW_DOCUMENT,
+    PERMISSION_CODES.VERIFY_DOCUMENT,
+    PERMISSION_CODES.REJECT_DOCUMENT,
+    PERMISSION_CODES.REQUEST_RESUBMISSION,
+    PERMISSION_CODES.VIEW_FINANCE,
+    PERMISSION_CODES.CREATE_INVOICE,
+    PERMISSION_CODES.CREATE_PAYMENT,
+    PERMISSION_CODES.VIEW_FINANCIAL_REPORTS,
+    PERMISSION_CODES.VIEW_ATTENDANCE,
+    PERMISSION_CODES.RECORD_ATTENDANCE,
+    PERMISSION_CODES.EDIT_ATTENDANCE,
+    PERMISSION_CODES.SCAN_QR_ATTENDANCE,
+    PERMISSION_CODES.VIEW_ATTENDANCE_REPORTS,
+    PERMISSION_CODES.VIEW_CLASS,
+    PERMISSION_CODES.CREATE_CLASS,
+    PERMISSION_CODES.EDIT_CLASS,
+    PERMISSION_CODES.VIEW_TEACHER,
+    PERMISSION_CODES.MANAGE_TEACHER,
+    PERMISSION_CODES.VIEW_TASK,
+    PERMISSION_CODES.CREATE_TASK,
+    PERMISSION_CODES.EDIT_TASK,
+    PERMISSION_CODES.COMPLETE_TASK,
+    PERMISSION_CODES.ASSIGN_TASK,
+    PERMISSION_CODES.VIEW_NOTIFICATION,
+    PERMISSION_CODES.SEND_NOTIFICATION,
+    PERMISSION_CODES.MANAGE_OWN_NOTIFICATION_PREFERENCES,
+    PERMISSION_CODES.VIEW_REPORT,
+  ],
+
+  COUNSELOR: [
+    PERMISSION_CODES.VIEW_OWN_PROFILE,
+    PERMISSION_CODES.EDIT_OWN_PROFILE,
+    PERMISSION_CODES.CHANGE_OWN_PASSWORD,
+    PERMISSION_CODES.VIEW_OWN_BRANCH,
+    PERMISSION_CODES.VIEW_LEAD,
+    PERMISSION_CODES.CREATE_LEAD,
+    PERMISSION_CODES.EDIT_LEAD,
+    PERMISSION_CODES.CONVERT_LEAD,
+    PERMISSION_CODES.VIEW_COUNSELING,
+    PERMISSION_CODES.CREATE_COUNSELING,
+    PERMISSION_CODES.EDIT_COUNSELING,
+    PERMISSION_CODES.CANCEL_COUNSELING,
+    PERMISSION_CODES.RECORD_COUNSELING_OUTCOME,
+    PERMISSION_CODES.VIEW_STUDENT,
+    PERMISSION_CODES.CREATE_STUDENT,
+    PERMISSION_CODES.EDIT_STUDENT,
+    PERMISSION_CODES.VIEW_APPLICATION,
+    PERMISSION_CODES.CREATE_APPLICATION,
+    PERMISSION_CODES.EDIT_APPLICATION,
+    PERMISSION_CODES.VIEW_DOCUMENT,
+    PERMISSION_CODES.VIEW_TASK,
+    PERMISSION_CODES.CREATE_TASK,
+    PERMISSION_CODES.EDIT_TASK,
+    PERMISSION_CODES.COMPLETE_TASK,
+    PERMISSION_CODES.VIEW_NOTIFICATION,
+    PERMISSION_CODES.MANAGE_OWN_NOTIFICATION_PREFERENCES,
+  ],
+
+  RECEPTIONIST: [
+    PERMISSION_CODES.VIEW_OWN_PROFILE,
+    PERMISSION_CODES.EDIT_OWN_PROFILE,
+    PERMISSION_CODES.CHANGE_OWN_PASSWORD,
+    PERMISSION_CODES.VIEW_OWN_BRANCH,
+    PERMISSION_CODES.CREATE_LEAD,
+    PERMISSION_CODES.CREATE_COUNSELING,
+    PERMISSION_CODES.VIEW_STUDENT,
+    PERMISSION_CODES.VIEW_FINANCE,
+    PERMISSION_CODES.CREATE_PAYMENT,
+    PERMISSION_CODES.VIEW_NOTIFICATION,
+    PERMISSION_CODES.MANAGE_OWN_NOTIFICATION_PREFERENCES,
+  ],
+
+  TEACHER: [
+    PERMISSION_CODES.VIEW_OWN_PROFILE,
+    PERMISSION_CODES.EDIT_OWN_PROFILE,
+    PERMISSION_CODES.CHANGE_OWN_PASSWORD,
+    PERMISSION_CODES.VIEW_OWN_BRANCH,
+    PERMISSION_CODES.VIEW_STUDENT,
+    PERMISSION_CODES.VIEW_OWN_ATTENDANCE,
+    PERMISSION_CODES.RECORD_ATTENDANCE,
+    PERMISSION_CODES.SCAN_QR_ATTENDANCE,
+    PERMISSION_CODES.VIEW_OWN_CLASSES,
+    PERMISSION_CODES.VIEW_NOTIFICATION,
+    PERMISSION_CODES.MANAGE_OWN_NOTIFICATION_PREFERENCES,
+  ],
+
+  STUDENT: [
+    PERMISSION_CODES.VIEW_OWN_PROFILE,
+    PERMISSION_CODES.EDIT_OWN_PROFILE,
+    PERMISSION_CODES.CHANGE_OWN_PASSWORD,
+    PERMISSION_CODES.VIEW_OWN_STUDENT_PROFILE,
+    PERMISSION_CODES.EDIT_OWN_STUDENT_PROFILE,
+    PERMISSION_CODES.VIEW_OWN_APPLICATION,
+    PERMISSION_CODES.VIEW_OWN_DOCUMENT_STATUS,
+    PERMISSION_CODES.VIEW_OWN_FEES,
+    PERMISSION_CODES.VIEW_OWN_ATTENDANCE,
+    PERMISSION_CODES.VIEW_OWN_CLASSES,
+    PERMISSION_CODES.VIEW_NOTIFICATION,
+    PERMISSION_CODES.MANAGE_OWN_NOTIFICATION_PREFERENCES,
+  ],
+};
+
+/**
+ * Fields a Student may edit on their own profile.
+ * Any field NOT in this list will be rejected server-side.
+ */
+export const STUDENT_EDITABLE_FIELDS = [
+  'contact.phone',
+  'contact.email',
+  'contact.alternatePhone',
+  'contact.address',
+  'emergencyContact.name',
+  'emergencyContact.relationship',
+  'emergencyContact.phone',
+  'emergencyContact.email',
+  'emergencyContact.address',
+] as const;
+
+export type StudentEditableField = (typeof STUDENT_EDITABLE_FIELDS)[number];

@@ -1,0 +1,43 @@
+version: '3.9'
+
+name: consultancy-test
+
+services:
+  mongodb-test:
+    image: mongo:7.0
+    container_name: consultancy-mongodb-test
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test
+      MONGO_INITDB_ROOT_PASSWORD: testpassword
+      MONGO_INITDB_DATABASE: consultancy_test
+    tmpfs:
+      - /data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - consultancy-test-network
+
+  redis-test:
+    image: redis:7.4-alpine
+    container_name: consultancy-redis-test
+    ports:
+      - "6380:6379"
+    command: redis-server --requirepass testredispassword
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "testredispassword", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - consultancy-test-network
+
+networks:
+  consultancy-test-network:
+    driver: bridge

@@ -1,0 +1,50 @@
+{
+  "name": "consultancy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Japanese Consultancy Management, Student & Branch Operations Platform",
+  "author": "Japan Consultancy Engineering",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@consultancy/api",
+    "dev:web": "turbo run dev --filter=@consultancy/web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9.12.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}

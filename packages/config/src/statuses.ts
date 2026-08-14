@@ -1,0 +1,248 @@
+/**
+ * Status enums for all state machines.
+ * See docs/state-machines.md for allowed transitions.
+ */
+
+// ─── LEAD ───────────────────────────────────────────
+export const LEAD_STATUSES = {
+  NEW: 'NEW',
+  CONTACTED: 'CONTACTED',
+  COUNSELING_BOOKED: 'COUNSELING_BOOKED',
+  COUNSELING_ATTENDED: 'COUNSELING_ATTENDED',
+  NO_SHOW: 'NO_SHOW',
+  FOLLOW_UP: 'FOLLOW_UP',
+  INTERESTED: 'INTERESTED',
+  QUALIFIED: 'QUALIFIED',
+  CONVERTED: 'CONVERTED',
+  NOT_INTERESTED: 'NOT_INTERESTED',
+  LOST: 'LOST',
+} as const;
+
+export type LeadStatus = (typeof LEAD_STATUSES)[keyof typeof LEAD_STATUSES];
+
+export const LEAD_STATUS_TRANSITIONS: Record<LeadStatus, LeadStatus[]> = {
+  NEW: ['CONTACTED', 'LOST'],
+  CONTACTED: ['COUNSELING_BOOKED', 'FOLLOW_UP', 'NOT_INTERESTED', 'LOST'],
+  COUNSELING_BOOKED: ['COUNSELING_ATTENDED', 'NO_SHOW', 'LOST'],
+  COUNSELING_ATTENDED: ['INTERESTED', 'NOT_INTERESTED', 'FOLLOW_UP', 'LOST'],
+  NO_SHOW: ['FOLLOW_UP', 'COUNSELING_BOOKED', 'LOST'],
+  FOLLOW_UP: ['CONTACTED', 'COUNSELING_BOOKED', 'NOT_INTERESTED', 'LOST'],
+  INTERESTED: ['QUALIFIED', 'FOLLOW_UP', 'NOT_INTERESTED', 'LOST'],
+  QUALIFIED: ['CONVERTED', 'FOLLOW_UP', 'NOT_INTERESTED', 'LOST'],
+  NOT_INTERESTED: ['FOLLOW_UP', 'LOST'],
+  CONVERTED: [],
+  LOST: [],
+};
+
+// ─── LEAD SOURCES ───────────────────────────────────
+export const LEAD_SOURCES = {
+  WEBSITE: 'WEBSITE',
+  FACEBOOK: 'FACEBOOK',
+  INSTAGRAM: 'INSTAGRAM',
+  MESSENGER: 'MESSENGER',
+  WALK_IN: 'WALK_IN',
+  REFERRAL: 'REFERRAL',
+  PHONE: 'PHONE',
+  GOOGLE_FORM: 'GOOGLE_FORM',
+  OTHER: 'OTHER',
+} as const;
+
+export type LeadSource = (typeof LEAD_SOURCES)[keyof typeof LEAD_SOURCES];
+
+// ─── COUNSELING ─────────────────────────────────────
+export const COUNSELING_STATUSES = {
+  BOOKED: 'BOOKED',
+  ATTENDED: 'ATTENDED',
+  NO_SHOW: 'NO_SHOW',
+  RESCHEDULED: 'RESCHEDULED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type CounselingStatus =
+  (typeof COUNSELING_STATUSES)[keyof typeof COUNSELING_STATUSES];
+
+export const COUNSELING_STATUS_TRANSITIONS: Record<CounselingStatus, CounselingStatus[]> = {
+  BOOKED: ['ATTENDED', 'NO_SHOW', 'RESCHEDULED', 'CANCELLED'],
+  ATTENDED: [],
+  NO_SHOW: ['BOOKED'],
+  RESCHEDULED: ['BOOKED'],
+  CANCELLED: [],
+};
+
+// ─── APPLICATION ────────────────────────────────────
+export const APPLICATION_STATUSES = {
+  DRAFT: 'DRAFT',
+  REGISTERED: 'REGISTERED',
+  DOCUMENT_COLLECTION: 'DOCUMENT_COLLECTION',
+  DOCUMENT_REVIEW: 'DOCUMENT_REVIEW',
+  DOCUMENT_VERIFICATION: 'DOCUMENT_VERIFICATION',
+  FINAL_APPROVAL: 'FINAL_APPROVAL',
+  SUBMITTED: 'SUBMITTED',
+  PROCESSING: 'PROCESSING',
+  ADDITIONAL_DOCUMENT_REQUIRED: 'ADDITIONAL_DOCUMENT_REQUIRED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type ApplicationStatus =
+  (typeof APPLICATION_STATUSES)[keyof typeof APPLICATION_STATUSES];
+
+export const APPLICATION_STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
+  DRAFT: ['REGISTERED', 'CANCELLED'],
+  REGISTERED: ['DOCUMENT_COLLECTION', 'CANCELLED'],
+  DOCUMENT_COLLECTION: ['DOCUMENT_REVIEW', 'CANCELLED'],
+  DOCUMENT_REVIEW: ['DOCUMENT_VERIFICATION', 'DOCUMENT_COLLECTION', 'CANCELLED'],
+  DOCUMENT_VERIFICATION: ['FINAL_APPROVAL', 'DOCUMENT_REVIEW', 'CANCELLED'],
+  FINAL_APPROVAL: ['SUBMITTED', 'DOCUMENT_VERIFICATION', 'CANCELLED'],
+  SUBMITTED: ['PROCESSING', 'ADDITIONAL_DOCUMENT_REQUIRED', 'CANCELLED'],
+  PROCESSING: ['APPROVED', 'REJECTED', 'ADDITIONAL_DOCUMENT_REQUIRED'],
+  ADDITIONAL_DOCUMENT_REQUIRED: ['DOCUMENT_REVIEW'],
+  APPROVED: ['COMPLETED'],
+  REJECTED: [],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
+// ─── DOCUMENT ───────────────────────────────────────
+export const DOCUMENT_STATUSES = {
+  NOT_SUBMITTED: 'NOT_SUBMITTED',
+  SUBMITTED: 'SUBMITTED',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  VERIFIED: 'VERIFIED',
+  REJECTED: 'REJECTED',
+  RESUBMISSION_REQUIRED: 'RESUBMISSION_REQUIRED',
+  APPROVED: 'APPROVED',
+} as const;
+
+export type DocumentStatus =
+  (typeof DOCUMENT_STATUSES)[keyof typeof DOCUMENT_STATUSES];
+
+export const DOCUMENT_STATUS_TRANSITIONS: Record<DocumentStatus, DocumentStatus[]> = {
+  NOT_SUBMITTED: ['SUBMITTED'],
+  SUBMITTED: ['UNDER_REVIEW'],
+  UNDER_REVIEW: ['VERIFIED', 'REJECTED', 'RESUBMISSION_REQUIRED'],
+  VERIFIED: ['APPROVED', 'REJECTED'],
+  REJECTED: ['RESUBMISSION_REQUIRED'],
+  RESUBMISSION_REQUIRED: ['SUBMITTED'],
+  APPROVED: [],
+};
+
+// ─── TASK ───────────────────────────────────────────
+export const TASK_STATUSES = {
+  OPEN: 'OPEN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type TaskStatus = (typeof TASK_STATUSES)[keyof typeof TASK_STATUSES];
+
+export const TASK_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
+  OPEN: ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+  IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
+export const TASK_TYPES = {
+  CALL: 'CALL',
+  MESSAGE: 'MESSAGE',
+  DOCUMENT_REMINDER: 'DOCUMENT_REMINDER',
+  PAYMENT_REMINDER: 'PAYMENT_REMINDER',
+  COUNSELING_FOLLOWUP: 'COUNSELING_FOLLOWUP',
+  APPLICATION_FOLLOWUP: 'APPLICATION_FOLLOWUP',
+  OTHER: 'OTHER',
+} as const;
+
+export type TaskType = (typeof TASK_TYPES)[keyof typeof TASK_TYPES];
+
+export const TASK_PRIORITIES = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+  URGENT: 'URGENT',
+} as const;
+
+export type TaskPriority = (typeof TASK_PRIORITIES)[keyof typeof TASK_PRIORITIES];
+
+// ─── ATTENDANCE ─────────────────────────────────────
+export const ATTENDANCE_STATUSES = {
+  PRESENT: 'PRESENT',
+  ABSENT: 'ABSENT',
+  LATE: 'LATE',
+  LEAVE: 'LEAVE',
+} as const;
+
+export type AttendanceStatus =
+  (typeof ATTENDANCE_STATUSES)[keyof typeof ATTENDANCE_STATUSES];
+
+export const ATTENDANCE_METHODS = {
+  QR_SCAN: 'QR_SCAN',
+  MANUAL: 'MANUAL',
+} as const;
+
+export type AttendanceMethod =
+  (typeof ATTENDANCE_METHODS)[keyof typeof ATTENDANCE_METHODS];
+
+// ─── STUDENT ────────────────────────────────────────
+export const STUDENT_STATUSES = {
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  SUSPENDED: 'SUSPENDED',
+  WITHDRAWN: 'WITHDRAWN',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+
+export type StudentStatus = (typeof STUDENT_STATUSES)[keyof typeof STUDENT_STATUSES];
+
+// ─── USER ───────────────────────────────────────────
+export const USER_STATUSES = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  PENDING_ACTIVATION: 'PENDING_ACTIVATION',
+} as const;
+
+export type UserStatus = (typeof USER_STATUSES)[keyof typeof USER_STATUSES];
+
+// ─── INVOICE ────────────────────────────────────────
+export const INVOICE_STATUSES = {
+  DRAFT: 'DRAFT',
+  ISSUED: 'ISSUED',
+  PARTIALLY_PAID: 'PARTIALLY_PAID',
+  PAID: 'PAID',
+  OVERDUE: 'OVERDUE',
+  CANCELLED: 'CANCELLED',
+  VOIDED: 'VOIDED',
+} as const;
+
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[keyof typeof INVOICE_STATUSES];
+
+// ─── PAYMENT ────────────────────────────────────────
+export const PAYMENT_STATUSES = {
+  COMPLETED: 'COMPLETED',
+  VOIDED: 'VOIDED',
+} as const;
+
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[keyof typeof PAYMENT_STATUSES];
+
+export const PAYMENT_METHODS = {
+  CASH: 'CASH',
+  BANK_TRANSFER: 'BANK_TRANSFER',
+  CHEQUE: 'CHEQUE',
+  OTHER: 'OTHER',
+} as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[keyof typeof PAYMENT_METHODS];
+
+// ─── CLASS ──────────────────────────────────────────
+export const CLASS_STATUSES = {
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  PAUSED: 'PAUSED',
+} as const;
+
+export type ClassStatus = (typeof CLASS_STATUSES)[keyof typeof CLASS_STATUSES];

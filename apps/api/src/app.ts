@@ -1,0 +1,193 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import session from 'express-session';
+import MongoStore from 'connect-mongo';
+import pinoHttp from 'pino-http';
+
+import { env } from '../config/env.js';
+import { API_PREFIX, SESSION_CONFIG } from '../config/constants.js';
+import { logger } from './lib/logger.js';
+import { requestIdMiddleware } from './middleware/requestId.js';
+import { globalRateLimiter } from './middleware/rateLimiter.js';
+import { authenticate } from './middleware/authenticate.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { sendSuccess } from './lib/response.js';
+import { getDatabaseStatus } from '../config/database.js';
+import { getRedisStatus } from '../config/redis.js';
+
+import { authRoutes } from './modules/auth/auth.routes.js';
+import { userRoutes } from './modules/users/user.routes.js';
+import { roleRoutes } from './modules/roles/role.routes.js';
+import { branchRoutes } from './modules/branches/branch.routes.js';
+import { auditRoutes } from './modules/audit/audit.routes.js';
+import { permissionRoutes } from './modules/permissions/permission.routes.js';
+
+import { studentRoutes } from './modules/students/student.routes.js';
+import { programRoutes } from './modules/programs/program.routes.js';
+import { visaCategoryRoutes } from './modules/visa-categories/visa-category.routes.js';
+import { applicationRoutes } from './modules/applications/application.routes.js';
+
+import { leadRoutes } from './modules/leads/lead.routes.js';
+import { counselingRoutes } from './modules/counseling/counseling.routes.js';
+
+import { documentRoutes } from './modules/documents/document.routes.js';
+import { financeRoutes } from './modules/finance/finance.routes.js';
+
+export function createApp(): express.Application {
+  const app = express();
+
+  // ─── Trust proxy (for rate limiting behind reverse proxy) ─────
+  app.set('trust proxy', 1);
+
+  // ─── Request ID ─────
+  app.use(requestIdMiddleware);
+
+  // ─── HTTP Logger ─────
+  if (!env.isTest) {
+    app.use(
+      pinoHttp({
+        logger,
+        autoLogging: {
+          ignore: (req) => {
+            return (req.url || '').includes('/health');
+          },
+        },
+        customProps: (req) => ({
+          requestId: (req as express.Request).requestId,
+        }),
+        redact: ['req.headers.authorization', 'req.headers.cookie'],
+      }),
+    );
+  }
+
+  // ─── Security Headers ─────
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+
+  // ─── CORS ─────
+  app.use(
+    cors({
+      origin: env.CORS_ALLOWED_ORIGINS,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+      exposedHeaders: ['X-Request-Id'],
+      maxAge: 86400,
+    }),
+  );
+
+  // ─── Compression ─────
+  app.use(compression());
+
+  // ─── Body Parsing ─────
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  // ─── Cookie Parser ─────
+  app.use(cookieParser());
+
+  // ─── Session ─────
+  app.use(
+    session({
+      name: env.COOKIE_NAME,
+      secret: env.SESSION_SECRET,
+      resave: SESSION_CONFIG.RESAVE,
+      saveUninitialized: SESSION_CONFIG.SAVE_UNINITIALIZED,
+      rolling: SESSION_CONFIG.ROLLING,
+      store: MongoStore.create({
+        mongoUrl: env.MONGODB_URI,
+        dbName: env.MONGODB_DB_NAME,
+        collectionName: 'sessions',
+        ttl: env.SESSION_MAX_AGE_MS / 1000,
+        autoRemove: 'native',
+        touchAfter: 24 * 3600,
+      }),
+      cookie: {
+        httpOnly: true,
+        secure: env.COOKIE_SECURE,
+        sameSite: env.COOKIE_SAMESITE,
+        maxAge: env.SESSION_MAX_AGE_MS,
+        domain: env.isProduction ? env.COOKIE_DOMAIN : undefined,
+        path: '/',
+      },
+    }),
+  );
+
+  // ─── Rate Limiting ─────
+  app.use(globalRateLimiter);
+
+  // ─── Health Check (before auth) ─────
+  app.get('/api/health', (_req, res) => {
+    sendSuccess(res, {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+      version: env.API_VERSION,
+    });
+  });
+
+  app.get('/api/health/detailed', async (_req, res) => {
+    const dbStatus = getDatabaseStatus();
+    const redisStatus = await getRedisStatus();
+
+    const allHealthy = dbStatus.connected && redisStatus.connected;
+
+    sendSuccess(
+      res,
+      {
+        status: allHealthy ? 'healthy' : 'degraded',
+        timestamp: new Date().toISOString(),
+        environment: env.NODE_ENV,
+        version: env.API_VERSION,
+        services: {
+          database: {
+            connected: dbStatus.connected,
+            readyState: dbStatus.readyState,
+          },
+          redis: {
+            connected: redisStatus.connected,
+            latencyMs: redisStatus.latencyMs,
+          },
+        },
+      },
+      allHealthy ? 200 : 503,
+    );
+  });
+
+  // ─── Authentication ─────
+  app.use(authenticate);
+
+  // ─── API Routes ─────
+  app.use(`${API_PREFIX}/auth`, authRoutes);
+  app.use(`${API_PREFIX}/users`, userRoutes);
+  app.use(`${API_PREFIX}/roles`, roleRoutes);
+  app.use(`${API_PREFIX}/permissions`, permissionRoutes);
+  app.use(`${API_PREFIX}/branches`, branchRoutes);
+  app.use(`${API_PREFIX}/audit`, auditRoutes);
+  app.use(`${API_PREFIX}/students`, studentRoutes);
+app.use(`${API_PREFIX}/programs`, programRoutes);
+app.use(`${API_PREFIX}/visa-categories`, visaCategoryRoutes);
+app.use(`${API_PREFIX}/applications`, applicationRoutes);
+
+app.use(`${API_PREFIX}/leads`, leadRoutes);
+app.use(`${API_PREFIX}/counseling`, counselingRoutes);
+app.use(`${API_PREFIX}/visa-categories`, visaCategoryRoutes);
+
+
+app.use(`${API_PREFIX}/documents`, documentRoutes);
+app.use(`${API_PREFIX}/finance`, financeRoutes);
+  // ─── 404 Handler ─────
+  app.use(notFoundHandler);
+
+  // ─── Error Handler ─────
+  app.use(errorHandler);
+
+  return app;
+}
