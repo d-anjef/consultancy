@@ -1,16 +1,14 @@
 import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from 'axios';
 import { ApiError, type ApiResponse } from '@/types/api.types';
-import { siteConfig } from '@/config/site';
 
 /**
  * Central Axios instance for all API calls.
- * - Uses `credentials: include` for session cookies.
- * - Base URL points to Next.js proxy (/api/v1/*) which forwards to backend.
+ *
+ * LOCAL DEV:  NEXT_PUBLIC_API_BASE_URL not set → uses '/api/v1' → Next.js proxy to localhost:4000
+ * PRODUCTION: NEXT_PUBLIC_API_BASE_URL set → calls Render directly
  */
 const client: AxiosInstance = axios.create({
-  baseURL: typeof window !== 'undefined'
-    ? (process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1')
-    : (process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1'),
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -19,10 +17,6 @@ const client: AxiosInstance = axios.create({
   timeout: 30000,
 });
 
-/**
- * Unwrap the standard `{ success, data, meta }` envelope.
- * On error, throw ApiError with all context.
- */
 async function unwrap<T>(config: AxiosRequestConfig): Promise<T> {
   try {
     const response = await client.request<ApiResponse<T>>(config);
@@ -112,7 +106,6 @@ async function unwrap<T>(config: AxiosRequestConfig): Promise<T> {
 }
 
 export const api = {
-    
   get: <T>(url: string, params?: Record<string, unknown>) =>
     unwrap<T>({ method: 'GET', url, params }),
 
@@ -128,7 +121,6 @@ export const api = {
   delete: <T>(url: string) => unwrap<T>({ method: 'DELETE', url }),
 };
 
-export { siteConfig };
-
-export {api as apiClient } ;
+// Compatibility exports
+export { api as apiClient };
 export default api;

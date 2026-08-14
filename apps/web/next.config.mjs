@@ -14,10 +14,14 @@ const nextConfig = {
     ],
   },
   async rewrites() {
+    // Only proxy in development (when NEXT_PUBLIC_API_BASE_URL is not set)
+    if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+      return [];
+    }
     return [
       {
         source: '/api/v1/:path*',
-        destination: 'https://chiba-api.onrender.com/api/v1/:path*',
+        destination: 'http://localhost:4000/api/v1/:path*',
       },
     ];
   },
