@@ -4,8 +4,39 @@ import { LEAD_STATUSES, LEAD_SOURCES, type LeadStatus, type LeadSource } from '@
 export interface LeadPersonal {
   firstName: string;
   lastName: string;
+  middleName?: string;
   phone: string;
   email?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  dateOfBirth?: Date;
+  occupation?: string;
+}
+
+export interface LeadAddress {
+  permanentAddress?: string;
+  presentAddress?: string;
+}
+
+export interface LeadEducation {
+  lastEducation?: '10+2' | 'BACHELOR' | 'MASTER' | 'OTHER';
+  faculty?: string;
+  japaneseLanguageHistory?: boolean;
+  japanesePassedYear?: string;
+  japaneseInstitute?: string;
+}
+
+export interface LeadPreference {
+  preferredCollege?: string;
+  periodOfStudy?: string;
+  preferredIntake?: 'APRIL' | 'JULY' | 'OCTOBER' | 'JANUARY';
+  previousVisaApply?: boolean;
+}
+
+export interface LeadFamily {
+  fatherName?: string;
+  fatherPhone?: string;
+  motherName?: string;
+  motherPhone?: string;
 }
 
 export interface LeadSourceMetadata {
@@ -26,6 +57,10 @@ export interface LeadDocument extends Document {
   branch: Types.ObjectId;
 
   personal: LeadPersonal;
+  address?: LeadAddress;
+  education?: LeadEducation;
+  preference?: LeadPreference;
+  family?: LeadFamily;
 
   source: LeadSource;
   sourceMetadata?: LeadSourceMetadata;
@@ -54,8 +89,57 @@ const personalSchema = new Schema<LeadPersonal>(
   {
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
+    middleName: { type: String, trim: true },
     phone: { type: String, required: true, trim: true, index: true },
     email: { type: String, trim: true, lowercase: true, index: true },
+    gender: { type: String, enum: ['MALE', 'FEMALE', 'OTHER'] },
+    dateOfBirth: { type: Date },
+    occupation: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+const addressSchema = new Schema<LeadAddress>(
+  {
+    permanentAddress: { type: String, trim: true },
+    presentAddress: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+const educationSchema = new Schema<LeadEducation>(
+  {
+    lastEducation: {
+      type: String,
+      enum: ['10+2', 'BACHELOR', 'MASTER', 'OTHER'],
+    },
+    faculty: { type: String, trim: true },
+    japaneseLanguageHistory: { type: Boolean },
+    japanesePassedYear: { type: String, trim: true },
+    japaneseInstitute: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+const preferenceSchema = new Schema<LeadPreference>(
+  {
+    preferredCollege: { type: String, trim: true },
+    periodOfStudy: { type: String, trim: true },
+    preferredIntake: {
+      type: String,
+      enum: ['APRIL', 'JULY', 'OCTOBER', 'JANUARY'],
+    },
+    previousVisaApply: { type: Boolean },
+  },
+  { _id: false },
+);
+
+const familySchema = new Schema<LeadFamily>(
+  {
+    fatherName: { type: String, trim: true },
+    fatherPhone: { type: String, trim: true },
+    motherName: { type: String, trim: true },
+    motherPhone: { type: String, trim: true },
   },
   { _id: false },
 );
@@ -97,6 +181,10 @@ const leadSchema = new Schema<LeadDocument>(
       type: personalSchema,
       required: true,
     },
+    address: { type: addressSchema },
+    education: { type: educationSchema },
+    preference: { type: preferenceSchema },
+    family: { type: familySchema },
     source: {
       type: String,
       required: true,
