@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/types/api.types';
 import { loginFormSchema, type LoginFormValues } from '@/lib/validators/auth.schema';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ROUTES } from '@/data/constants';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
@@ -42,13 +42,9 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect based on role
       const isStudent = result.user?.role.code === 'STUDENT';
       const redirect = searchParams.get('redirect');
-      const target =
-        redirect ||
-        (isStudent ? ROUTES.MY_DASHBOARD : ROUTES.DASHBOARD);
-
+      const target = redirect || (isStudent ? ROUTES.MY_DASHBOARD : ROUTES.DASHBOARD);
       router.push(target);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -121,7 +117,11 @@ export default function LoginPage() {
               tabIndex={-1}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
           {errors.password && (
@@ -145,5 +145,13 @@ export default function LoginPage() {
         Having trouble signing in? Contact your administrator.
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }
