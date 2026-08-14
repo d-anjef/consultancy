@@ -88,15 +88,40 @@ export function createApp(): express.Application {
 
   // ─── CORS ─────
   app.use(
-    cors({
-      origin: env.CORS_ALLOWED_ORIGINS,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
-      exposedHeaders: ['X-Request-Id'],
-      maxAge: 86400,
-    }),
-  );
+  cors({
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        'https://webchiba.vercel.app',
+        'http://localhost:3000',
+      ];
+
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Also check env variable
+      const envOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      if (envOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    exposedHeaders: ['X-Request-Id'],
+    maxAge: 86400,
+  }),
+);
+      
 
   // ─── Compression ─────
   app.use(compression());
