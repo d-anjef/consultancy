@@ -1,73 +1,47 @@
 'use client';
 
-import { useMemo } from 'react';
-import { STAFF_NAVIGATION, STUDENT_NAVIGATION, type NavSection } from '@/config/navigation';
-import { usePermissions } from '@/hooks/usePermissions';
-import { Logo } from '@/components/shared/Logo/logo';
-import { SidebarItem } from './SidebarItem';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils/cn';
+import { Bell, Search } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { UserMenu } from '@/components/shared/UserMenu/UserMenu';
+import { useUnreadCount } from '@/hooks/useNotifications';
 
-interface SidebarProps {
-  className?: string;
-}
-
-export function Sidebar({ className }: SidebarProps) {
-  const { has, hasAny, isStudent } = usePermissions();
-
-  const sections = useMemo<NavSection[]>(() => {
-    const nav = isStudent ? STUDENT_NAVIGATION : STAFF_NAVIGATION;
-
-    return nav
-      .map((section) => ({
-        ...section,
-        items: section.items.filter((item) => {
-          if (item.requiredPermissions && item.requiredPermissions.length > 0) {
-            return item.requiredPermissions.every((p) => has(p));
-          }
-          if (item.requireAny && item.requireAny.length > 0) {
-            return hasAny(...item.requireAny);
-          }
-          return true;
-        }),
-      }))
-      .filter((section) => section.items.length > 0);
-  }, [has, hasAny, isStudent]);
+export function TopNav() {
+  const router = useRouter();
+  const { data } = useUnreadCount();
+  const unreadCount = data?.count ?? 0;
 
   return (
-    <aside
-      className={cn(
-        'flex h-screen w-60 shrink-0 flex-col border-r border-border bg-surface',
-        className,
-      )}
-    >
-      {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center border-b border-border px-4">
-        <Logo size="md" />
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-4 border-b border-border bg-background px-4 md:px-6">
+      <div className="relative flex-1 max-w-xl">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search students, applications, documents…"
+          className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors"
+        />
       </div>
 
-      {/* Navigation */}
-      <ScrollArea className="flex-1">
-        <nav className="flex flex-col gap-6 px-3 py-4">
-          {sections.map((section, i) => (
-            <div key={i} className="flex flex-col gap-1">
-              {section.label && (
-                <p className="mb-1 px-3 text-xxs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {section.label}
-                </p>
-              )}
-              {section.items.map((item) => (
-                <SidebarItem
-                  key={item.href}
-                  href={item.href}
-                  icon={item.icon}
-                  label={item.label}
-                />
-              ))}
-            </div>
-          ))}
-        </nav>
-      </ScrollArea>
-    </aside>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          onClick={() => router.push('/notifications')}
+        >
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-xxs font-semibold text-accent-foreground">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+          <span className="sr-only">Notifications</span>
+        </Button>
+
+        <div className="h-6 w-px bg-border mx-1" />
+
+        <UserMenu />
+      </div>
+    </header>
   );
 }
