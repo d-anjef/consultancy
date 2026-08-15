@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
+import { CreateClassDialog } from '@/components/classes/CreateClassDialog';
 import type { ClassEntity } from '@/lib/api/classes';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -26,6 +27,7 @@ export default function ClassesPage() {
   const router = useRouter();
   const { has } = usePermissions();
   const [page, setPage] = useState(1);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isLoading } = useClasses({ page, limit: 20 });
   const canCreate = has(PERMISSION_CODES.CREATE_CLASS);
@@ -42,7 +44,7 @@ export default function ClassesPage() {
           </p>
         </div>
         {canCreate && (
-          <Button variant="accent">
+          <Button variant="accent" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" />
             New Class
           </Button>
@@ -70,6 +72,8 @@ export default function ClassesPage() {
           ))}
         </div>
       )}
+
+      <CreateClassDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }
@@ -104,7 +108,6 @@ function ClassCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Language Level */}
         {cls.languageLevel && (
           <div className="flex items-center gap-2">
             <Badge variant="accent" className="text-xxs">
@@ -118,13 +121,11 @@ function ClassCard({
           </div>
         )}
 
-        {/* Teacher */}
         <div className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Teacher:</span>{' '}
           {cls.teacher.firstName} {cls.teacher.lastName}
         </div>
 
-        {/* Schedule */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Calendar className="h-3 w-3 shrink-0" />
           <span>{scheduleDays}</span>
@@ -140,7 +141,6 @@ function ClassCard({
           </div>
         )}
 
-        {/* Students count */}
         <div className="flex items-center gap-1 text-xs pt-2 border-t border-border">
           <UsersIcon className="h-3 w-3 text-muted-foreground" />
           <span className="font-medium tabular-nums text-foreground">
@@ -151,7 +151,6 @@ function ClassCard({
           </span>
         </div>
 
-        {/* Dates */}
         <div className="text-xxs text-muted-foreground">
           Started {format(new Date(cls.startDate), 'MMM dd, yyyy')}
           {cls.endDate && (

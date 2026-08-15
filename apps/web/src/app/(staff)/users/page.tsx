@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { Plus, Users, Search } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useUsers } from '@/hooks/useUsers';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PERMISSION_CODES } from '@consultancy/config';
-import { api } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,17 +19,7 @@ import {
 } from '@/components/ui/table';
 import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
-
-interface User {
-  id: string;
-  email: string;
-  role: { id: string; code: string; displayName: string };
-  branch: { id: string; code: string; name: string } | null;
-  profile: { firstName: string; lastName: string; phone: string };
-  status: string;
-  emailVerified: boolean;
-  createdAt: string;
-}
+import { CreateUserDialog } from '@/components/users/CreateUserDialog';
 
 const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'muted' | 'destructive'> = {
   ACTIVE: 'success',
@@ -40,14 +29,20 @@ const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'muted' | 'destruc
 };
 
 export default function UsersPage() {
-  const { has } = usePermissions();
+  const { hasAny } = usePermissions();
   const [search, setSearch] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users', { search }],
-    queryFn: () => api.get<User[]>('/users', { search: search || undefined, limit: 100 }),
-    staleTime: 30_000,
-  });
+  const { data, isLoading } = useUsers({ search: search || undefined, limit: 100 });
+  const users = data?.items ?? [];
+
+  const canCreate = hasAny(
+    PERMISSION_CODES.CREATE_USER_ADMIN,
+    PERMISSION_CODES.CREATE_USER_BRANCH_MANAGER,
+    PERMISSION_CODES.CREATE_USER_COUNSELOR,
+    PERMISSION_CODES.CREATE_USER_RECEPTIONIST,
+    PERMISSION_CODES.CREATE_USER_TEACHER,
+  );
 
   return (
     <div className="space-y-6">
@@ -58,9 +53,14 @@ export default function UsersPage() {
             Manage staff and student accounts
           </p>
         </div>
+        {canCreate && (
+          <Button variant="accent" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New User
+          </Button>
+        )}
       </div>
 
-      {/* Search */}
       <div className="relative max-w-xs">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -117,6 +117,8 @@ export default function UsersPage() {
           </Table>
         </div>
       )}
+
+      <CreateUserDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

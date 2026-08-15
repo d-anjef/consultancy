@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
+import { CreateBranchDialog } from '@/components/branches/CreateBranchDialog';
 
 interface Branch {
   id: string;
@@ -31,6 +32,7 @@ interface Branch {
 
 export default function BranchesPage() {
   const { has } = usePermissions();
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { data: branches = [], isLoading } = useQuery({
     queryKey: ['branches', 'all'],
@@ -45,12 +47,10 @@ export default function BranchesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Branches</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage organization branches
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Manage organization branches</p>
         </div>
         {canCreate && (
-          <Button variant="accent">
+          <Button variant="accent" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" />
             New Branch
           </Button>
@@ -96,6 +96,8 @@ export default function BranchesPage() {
           ))}
         </div>
       )}
+
+      <CreateBranchDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

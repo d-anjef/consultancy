@@ -135,6 +135,12 @@ export const STAFF_NAVIGATION: NavSection[] = [
         icon: Bell,
         requiredPermissions: [PERMISSION_CODES.VIEW_NOTIFICATION],
       },
+      {
+  label: 'Journey Templates',
+  href: '/journey',
+  icon: MapPin,
+  requiredPermissions: [PERMISSION_CODES.MANAGE_SETTINGS],
+},
     ],
   },
   {
