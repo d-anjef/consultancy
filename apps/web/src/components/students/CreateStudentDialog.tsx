@@ -218,16 +218,11 @@ export function CreateStudentDialog({
         relationship: values.emergencyRelationship,
         phone: values.emergencyPhone,
       },
-      referredBy:
-        values.referredByStudentId || values.referredByName
-          ? {
-              studentId: values.referredByStudentId || undefined,
-              name: values.referredByName || undefined,
-            }
-          : undefined,
+      referredBy: values.referredByStudentId || undefined,
+referralRelationship: values.referredByName || undefined,
       notes: values.notes || undefined,
       sendInvitation: true,
-    } as any);
+    } );
 
     form.reset();
     onOpenChange(false);
