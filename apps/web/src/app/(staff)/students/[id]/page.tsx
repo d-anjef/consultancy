@@ -13,10 +13,14 @@ import {
   Plus,
   FileText,
   ShieldAlert,
+  Files,
+  MapPin,
+  Upload,
+  Download,
 } from 'lucide-react';
-import { MapPin } from 'lucide-react';
 import { useStudent } from '@/hooks/useStudents';
 import { useApplications } from '@/hooks/useApplications';
+import { useDocuments, downloadDocument } from '@/hooks/useDocuments';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PERMISSION_CODES } from '@consultancy/config';
 import { Button } from '@/components/ui/button';
@@ -25,9 +29,12 @@ import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
 import { StudentStatusBadge } from '@/components/students/StudentStatusBadge';
 import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
+import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
 import { TransferBranchDialog } from '@/components/students/TransferBranchDialog';
 import { ArchiveStudentDialog } from '@/components/students/ArchiveStudentDialog';
 import { CreateApplicationDialog } from '@/components/applications/CreateApplicationDialog';
+import { UploadDocumentDialog } from '@/components/documents/UploadDocumentDialog';
+import { formatFileSize } from '@/lib/utils/currency';
 
 export default function StudentDetailPage() {
   const params = useParams();
@@ -38,13 +45,16 @@ export default function StudentDetailPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [createAppOpen, setCreateAppOpen] = useState(false);
+  const [uploadDocOpen, setUploadDocOpen] = useState(false);
 
   const { data: student, isLoading } = useStudent(id);
   const { data: appsData } = useApplications({ studentId: id, limit: 50 });
+  const { data: docsData } = useDocuments({ studentId: id, limit: 50 });
 
   const canTransfer = has(PERMISSION_CODES.TRANSFER_STUDENT_BRANCH);
   const canArchive = has(PERMISSION_CODES.ARCHIVE_STUDENT);
   const canCreateApp = has(PERMISSION_CODES.CREATE_APPLICATION);
+  const canUploadDoc = has(PERMISSION_CODES.UPLOAD_DOCUMENT);
 
   if (isLoading) return <LoadingState fullPage message="Loading student…" />;
 
@@ -65,7 +75,10 @@ export default function StudentDetailPage() {
   }
 
   const applications = appsData?.items ?? [];
+  const documents = docsData?.items ?? [];
   const hasActiveApp = applications.some((a) => a.isActive);
+
+  const studentFullName = `${student.personal.firstName} ${student.personal.lastName}`;
 
   return (
     <div className="space-y-6">
@@ -91,13 +104,26 @@ export default function StudentDetailPage() {
           </p>
         </div>
 
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0">
+          {canUploadDoc && (
+            <Button variant="outline" onClick={() => setUploadDocOpen(true)}>
+              <Upload className="h-4 w-4" />
+              Upload Document
+            </Button>
+          )}
           {canCreateApp && !hasActiveApp && (
             <Button variant="accent" onClick={() => setCreateAppOpen(true)}>
               <Plus className="h-4 w-4" />
               New Application
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/students/${student.id}/journey`)}
+          >
+            <MapPin className="h-4 w-4" />
+            Journey
+          </Button>
           {canTransfer && (
             <Button variant="outline" onClick={() => setTransferOpen(true)}>
               <Building2 className="h-4 w-4" />
@@ -190,11 +216,21 @@ export default function StudentDetailPage() {
 
           {/* Applications */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Applications ({applications.length})
               </CardTitle>
+              {canCreateApp && !hasActiveApp && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCreateAppOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {applications.length === 0 ? (
@@ -228,6 +264,83 @@ export default function StudentDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Documents */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Files className="h-4 w-4" />
+                Documents ({documents.length})
+              </CardTitle>
+              {canUploadDoc && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setUploadDocOpen(true)}
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Upload
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {documents.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  No documents uploaded yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-md border border-border hover:bg-secondary/50 transition-colors"
+                    >
+                      <div
+                        className="min-w-0 flex-1 cursor-pointer"
+                        onClick={() => router.push(`/documents/${d.id}`)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm text-foreground truncate">
+                              {d.documentName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              <span className="font-mono">{d.documentType}</span>
+                              {' · '}
+                              {d.currentVersion?.file &&
+                                formatFileSize(d.currentVersion.file.sizeBytes)}
+                              {d.versionCount > 1 && (
+                                <> · v{d.versionCount}</>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <DocumentStatusBadge status={d.status} />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadDocument(
+                              d.id,
+                              d.currentVersion.file.originalName,
+                            );
+                          }}
+                          title="Download"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Notes */}
           {student.notes && (
             <Card>
@@ -242,15 +355,6 @@ export default function StudentDetailPage() {
             </Card>
           )}
         </div>
-
-        {/*Journey Tracker */}
-        <Button 
-        variant="outline"
-        onClick={() => router.push(`/students/${student.id}/journey`)}
-        >
-          <MapPin className="h-4 w-4" />
-          Journey
-        </Button>
 
         {/* Right column — 1/3 width */}
         <div className="space-y-6">
@@ -317,6 +421,12 @@ export default function StudentDetailPage() {
         student={student}
         open={createAppOpen}
         onOpenChange={setCreateAppOpen}
+      />
+      <UploadDocumentDialog
+        studentId={student.id}
+        studentName={studentFullName}
+        open={uploadDocOpen}
+        onOpenChange={setUploadDocOpen}
       />
     </div>
   );

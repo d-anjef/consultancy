@@ -73,7 +73,7 @@ export function CreateUserDialog({ open, onOpenChange }: Props) {
 
   const { data: branches = [] } = useQuery({
     queryKey: ['branches', 'active'],
-    queryFn: () => api.get<Branch[]>('/branches/active'),
+    queryFn: () => api.get<Branch[]>('/branches'),
     staleTime: 5 * 60_000,
   });
 

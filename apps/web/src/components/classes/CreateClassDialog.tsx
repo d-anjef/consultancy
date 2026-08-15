@@ -99,30 +99,38 @@ interface Props {
 export function CreateClassDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const create = useCreateClass();
+const { data: branches = [] } = useQuery({
+  queryKey: ['branches', 'active'],
+  queryFn: () => api.get<Branch[]>('/branches/active'),
+  staleTime: 5 * 60_000,
+});
 
-  const { data: branches = [] } = useQuery({
-    queryKey: ['branches', 'active'],
-    queryFn: () => api.get<Branch[]>('/branches/active'),
-    staleTime: 5 * 60_000,
-  });
+const { data: teachersRaw } = useQuery({
+  queryKey: ['teachers', 'list'],
+  queryFn: () => api.get<Teacher[]>('/teachers', { limit: 100 }),
+  staleTime: 5 * 60_000,
+});
+const teachers: Teacher[] = Array.isArray(teachersRaw)
+  ? teachersRaw
+  : ((teachersRaw as any)?.items ?? []);
 
-  const { data: teachers = [] } = useQuery({
-    queryKey: ['teachers', 'active'],
-    queryFn: () => api.get<Teacher[]>('/teachers'),
-    staleTime: 5 * 60_000,
-  });
+const { data: programsRaw } = useQuery({
+  queryKey: ['programs', 'list'],
+  queryFn: () => api.get<Program[]>('/programs'),
+  staleTime: 5 * 60_000,
+});
+const programs: Program[] = Array.isArray(programsRaw)
+  ? programsRaw
+  : ((programsRaw as any)?.items ?? []);
 
-  const { data: programs = [] } = useQuery({
-    queryKey: ['programs', 'active'],
-    queryFn: () => api.get<Program[]>('/programs/active'),
-    staleTime: 5 * 60_000,
-  });
-
-  const { data: languageLevels = [] } = useQuery({
-    queryKey: ['language-levels', 'active'],
-    queryFn: () => api.get<LanguageLevel[]>('/language-levels/active'),
-    staleTime: 5 * 60_000,
-  });
+const { data: levelsRaw } = useQuery({
+  queryKey: ['language-levels', 'list'],
+  queryFn: () => api.get<LanguageLevel[]>('/language-levels'),
+  staleTime: 5 * 60_000,
+});
+const languageLevels: LanguageLevel[] = Array.isArray(levelsRaw)
+  ? levelsRaw
+  : ((levelsRaw as any)?.items ?? []);
 
   const isOrgWide = user?.role.code === 'SUPER_ADMIN' || user?.role.code === 'ADMIN';
 
@@ -251,12 +259,14 @@ export function CreateClassDialog({ open, onOpenChange }: Props) {
                       <SelectContent>
                         {teachers.length === 0 ? (
                           <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                            No teachers found. Create a teacher user first.
+                            No teachers found. Create a Teacher user first
+                            (and ensure account is active).
                           </div>
                         ) : (
                           teachers.map((t) => (
                             <SelectItem key={t.id} value={t.id}>
                               {t.firstName} {t.lastName}
+                              {t.employeeId ? ` (${t.employeeId})` : ''}
                             </SelectItem>
                           ))
                         )}
@@ -282,11 +292,17 @@ export function CreateClassDialog({ open, onOpenChange }: Props) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {programs.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
+                        {programs.length === 0 ? (
+                          <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                            No programs yet.
+                          </div>
+                        ) : (
+                          programs.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -307,11 +323,17 @@ export function CreateClassDialog({ open, onOpenChange }: Props) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {languageLevels.map((l) => (
-                          <SelectItem key={l.id} value={l.id}>
-                            {l.name}
-                          </SelectItem>
-                        ))}
+                        {languageLevels.length === 0 ? (
+                          <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                            No language levels yet.
+                          </div>
+                        ) : (
+                          languageLevels.map((l) => (
+                            <SelectItem key={l.id} value={l.id}>
+                              {l.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

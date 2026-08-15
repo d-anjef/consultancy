@@ -34,7 +34,48 @@ import { Button } from '@/components/ui/button';
 import { useCreateStudent } from '@/hooks/useStudents';
 import { useAuth } from '@/context/AuthContext';
 import { branchesApi } from '@/lib/api/endpoints/branches.api';
+import { studentsApi } from '@/lib/api/students';
 import type { Lead } from '@/lib/api/leads';
+
+/* ─── Referrer Student Sub-Component ──────────────────────────────── */
+
+function ReferrerStudentSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { data: studentsData } = useQuery({
+    queryKey: ['students', 'for-referrer'],
+    queryFn: () => studentsApi.list({ limit: 100 }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const students = studentsData?.items ?? [];
+
+  return (
+    <Select
+      value={value || '__none__'}
+      onValueChange={(v) => onChange(v === '__none__' ? '' : v)}
+    >
+      <FormControl>
+        <SelectTrigger>
+          <SelectValue placeholder="None" />
+        </SelectTrigger>
+      </FormControl>
+      <SelectContent>
+        <SelectItem value="__none__">— None —</SelectItem>
+        {students.map((s) => (
+          <SelectItem key={s.id} value={s.id}>
+            {s.personal.firstName} {s.personal.lastName} ({s.studentId})
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/* ─── Schema ─────────────────────────────────────────────────────── */
 
 const createStudentSchema = z.object({
   branchId: z.string().min(1, 'Branch is required'),
@@ -59,10 +100,14 @@ const createStudentSchema = z.object({
   emergencyPhone: z
     .string()
     .regex(/^(\+977)?[0-9]{7,10}$/, 'Invalid phone number'),
+  referredByStudentId: z.string().optional().or(z.literal('')),
+  referredByName: z.string().trim().max(200).optional().or(z.literal('')),
   notes: z.string().trim().max(2000).optional().or(z.literal('')),
 });
 
 type CreateStudentFormValues = z.infer<typeof createStudentSchema>;
+
+/* ─── Props ──────────────────────────────────────────────────────── */
 
 interface CreateStudentDialogProps {
   open: boolean;
@@ -70,6 +115,8 @@ interface CreateStudentDialogProps {
   /** Pre-fill from an existing lead (converts lead → student) */
   fromLead?: Lead | null;
 }
+
+/* ─── Component ──────────────────────────────────────────────────── */
 
 export function CreateStudentDialog({
   open,
@@ -106,6 +153,8 @@ export function CreateStudentDialog({
       emergencyName: '',
       emergencyRelationship: '',
       emergencyPhone: '',
+      referredByStudentId: '',
+      referredByName: '',
       notes: '',
     },
   });
@@ -132,6 +181,8 @@ export function CreateStudentDialog({
         emergencyName: '',
         emergencyRelationship: '',
         emergencyPhone: '',
+        referredByStudentId: '',
+        referredByName: '',
         notes: fromLead.notes ?? '',
       });
     }
@@ -167,9 +218,16 @@ export function CreateStudentDialog({
         relationship: values.emergencyRelationship,
         phone: values.emergencyPhone,
       },
+      referredBy:
+        values.referredByStudentId || values.referredByName
+          ? {
+              studentId: values.referredByStudentId || undefined,
+              name: values.referredByName || undefined,
+            }
+          : undefined,
       notes: values.notes || undefined,
       sendInvitation: true,
-    });
+    } as any);
 
     form.reset();
     onOpenChange(false);
@@ -226,7 +284,9 @@ export function CreateStudentDialog({
 
             {/* Personal Info */}
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Personal Information</h4>
+              <h4 className="text-sm font-semibold text-foreground">
+                Personal Information
+              </h4>
               <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -373,7 +433,11 @@ export function CreateStudentDialog({
                         Email <span className="text-destructive">*</span>
                       </FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="student@example.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="student@example.com"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -448,7 +512,9 @@ export function CreateStudentDialog({
 
             {/* Emergency Contact */}
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">Emergency Contact</h4>
+              <h4 className="text-sm font-semibold text-foreground">
+                Emergency Contact
+              </h4>
               <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -496,6 +562,46 @@ export function CreateStudentDialog({
                   )}
                 />
               </div>
+            </div>
+
+            {/* Referral */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-foreground">
+                Referral (Optional)
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="referredByStudentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Referred by Student</FormLabel>
+                      <ReferrerStudentSelect
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="referredByName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Or Referrer Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="External referrer name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select an existing student who referred, or type a name if not in
+                the system.
+              </p>
             </div>
 
             {/* Notes */}

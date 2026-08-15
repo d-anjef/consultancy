@@ -328,8 +328,7 @@ export default function LeadDetailPage() {
       />
 
       <ScheduleCounselingDialog
-        leadId={lead.id}
-        branchId={lead.branch.id}
+        lead={lead}
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
       />

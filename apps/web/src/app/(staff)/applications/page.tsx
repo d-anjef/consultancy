@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useApplications } from '@/hooks/useApplications';
+import { usePermissions } from '@/hooks/usePermissions';
+import { PERMISSION_CODES } from '@consultancy/config';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ApplicationTable } from '@/components/applications/ApplicationTable';
@@ -9,8 +12,12 @@ import {
   ApplicationFilters,
   type ApplicationFilterValues,
 } from '@/components/applications/ApplicationFilters';
+import { CreateApplicationDialog } from '@/components/applications/CreateApplicationDialog';
+import { StudentPickerDialog } from '@/components/students/StudentPickerDialog';
+import type { Student } from '@/lib/api/students';
 
 export default function ApplicationsPage() {
+  const { has } = usePermissions();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<ApplicationFilterValues>({
     status: '',
@@ -18,6 +25,10 @@ export default function ApplicationsPage() {
     visaCategoryId: '',
     intakeYear: '',
   });
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isLoading } = useApplications({
     page,
@@ -29,16 +40,30 @@ export default function ApplicationsPage() {
   });
 
   const apps = data?.items ?? [];
+  const canCreate = has(PERMISSION_CODES.CREATE_APPLICATION);
+
+  function handleStudentPicked(student: Student) {
+    setSelectedStudent(student);
+    setCreateOpen(true);
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Applications
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Student visa & program applications
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Applications
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Student visa & program applications
+          </p>
+        </div>
+        {canCreate && (
+          <Button variant="accent" onClick={() => setPickerOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New Application
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -103,6 +128,26 @@ export default function ApplicationsPage() {
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Student picker → then create application dialog */}
+      <StudentPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={handleStudentPicked}
+        title="Select Student"
+        description="Choose the student to create an application for"
+      />
+
+      {selectedStudent && (
+        <CreateApplicationDialog
+          student={selectedStudent}
+          open={createOpen}
+          onOpenChange={(open) => {
+            setCreateOpen(open);
+            if (!open) setSelectedStudent(null);
+          }}
+        />
       )}
     </div>
   );

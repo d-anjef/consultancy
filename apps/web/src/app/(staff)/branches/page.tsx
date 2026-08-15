@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
 import { CreateBranchDialog } from '@/components/branches/CreateBranchDialog';
+import { Edit } from 'lucide-react';
+import { EditBranchDialog } from '@/components/branches/EditBranchDialog';
 
 interface Branch {
   id: string;
@@ -33,6 +35,8 @@ interface Branch {
 export default function BranchesPage() {
   const { has } = usePermissions();
   const [createOpen, setCreateOpen] = useState(false);
+
+  const [editBranch, setEditBranch] = useState<Branch | null>(null);
 
   const { data: branches = [], isLoading } = useQuery({
     queryKey: ['branches', 'all'],
@@ -91,6 +95,17 @@ export default function BranchesPage() {
                   <Mail className="h-3.5 w-3.5 shrink-0" />
                   <span>{branch.email}</span>
                 </div>
+                <div className="pt-2 border-t border-border">
+  <Button
+    variant="outline"
+    size="sm"
+    className="w-full"
+    onClick={() => setEditBranch(branch)}
+  >
+    <Edit className="h-3.5 w-3.5" />
+    Edit
+  </Button>
+</div>
               </CardContent>
             </Card>
           ))}
@@ -98,6 +113,12 @@ export default function BranchesPage() {
       )}
 
       <CreateBranchDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      <EditBranchDialog
+  branch={editBranch}
+  open={!!editBranch}
+  onOpenChange={(o) => !o && setEditBranch(null)}
+/>
     </div>
   );
 }

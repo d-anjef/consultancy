@@ -20,6 +20,7 @@ import {
   InvalidStateTransitionError,
   NotFoundError,
 } from '../../lib/errors.js';
+import { extractId } from '../../lib/mongo';
 import { generateApplicationNumber } from '../../lib/studentId.js';
 import type {
   CreateApplicationDto,
@@ -111,7 +112,10 @@ export class ApplicationService {
     if (!student) throw new NotFoundError('Student', data.studentId);
 
     const isOrgWide = ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role);
-    const studentBranchId = String((student.branch as unknown as BranchDocument)._id);
+    const studentBranchId = extractId(student.branch);
+    if (!studentBranchId) {
+      throw new BusinessRuleError('Student has no branch assigned');
+    }
     if (!isOrgWide && studentBranchId !== actor.branch) {
       throw new ForbiddenError("You do not have access to this student's branch");
     }
@@ -133,7 +137,9 @@ export class ApplicationService {
 
     const counselor = await userRepository.findById(data.assignedCounselorId);
     if (!counselor) throw new NotFoundError('Counselor', data.assignedCounselorId);
-    if (counselor.branch && String(counselor.branch) !== studentBranchId) {
+
+    const counselorBranchId = extractId(counselor.branch);
+    if (counselorBranchId && counselorBranchId !== studentBranchId) {
       throw new BusinessRuleError("Counselor must be from the student's branch");
     }
 
@@ -258,7 +264,6 @@ export class ApplicationService {
       data.reason,
     );
 
-    // Clear student's currentApplication if terminal
     if (!updated.isActive) {
       await StudentModel.findByIdAndUpdate(updated.student, {
         $unset: { currentApplication: '' },
@@ -342,7 +347,7 @@ export class ApplicationService {
 
   private enforceBranchAccess(app: ApplicationDocument, actor: ActorContext): void {
     if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const branchId = String((app.branch as unknown as BranchDocument)._id);
+    const branchId = extractId(app.branch);
     if (branchId !== actor.branch) {
       throw new ForbiddenError("You do not have access to this application's branch");
     }

@@ -22,42 +22,55 @@ interface SendMfaCodeEmailParams {
 }
 
 export class EmailService {
-  private async send(params: {
-    to: string;
-    subject: string;
-    html: string;
-    text: string;
-  }): Promise<void> {
-    const client = getResendClient();
-    const config = getEmailConfig();
+ private async send(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<void> {
+  const config = getEmailConfig();
 
-    if (!env.RESEND_API_KEY) {
-      logger.warn({ to: params.to, subject: params.subject }, 'Email skipped — Resend not configured (DEV MODE)');
-      logger.info({ preview: params.text }, 'Email content (would have been sent)');
-      return;
-    }
+
+     if (!env.RESEND_API_KEY) {
+    logger.warn(
+      { to: params.to, subject: params.subject },
+      'Email skipped — Resend not configured (DEV MODE)',
+    );
+    logger.info({ preview: params.text }, 'Email content (would have been sent)');
+    return;
+  }
 
     try {
-      const result = await client.emails.send({
-        from: config.from,
-        to: params.to,
-        replyTo: config.replyTo,
-        subject: params.subject,
-        html: params.html,
-        text: params.text,
-      });
+    const client = getResendClient();
+    const result = await client.emails.send({
+      from: config.from,
+      to: params.to,
+      replyTo: config.replyTo,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+    });
 
-      if (result.error) {
-        logger.error({ error: result.error, to: params.to }, 'Failed to send email');
-        throw new Error(`Email send failed: ${result.error.message}`);
-      }
-
-      logger.info({ to: params.to, subject: params.subject, id: result.data?.id }, 'Email sent');
-    } catch (error) {
-      logger.error({ error, to: params.to }, 'Email service error');
-      throw error;
+    if (result.error) {
+      logger.error(
+        { error: result.error, to: params.to },
+        'Failed to send email (non-blocking)',
+      );
+      return; // ← Don't throw
     }
+
+    logger.info(
+      { to: params.to, subject: params.subject, id: result.data?.id },
+      'Email sent',
+    );
+  } catch (error) {
+    logger.error(
+      { error, to: params.to, subject: params.subject },
+      'Email service error (non-blocking — user/student creation continues)',
+    );
+
   }
+}
 
   async sendInvitationEmail(params: SendInvitationEmailParams): Promise<void> {
     const activationUrl = `${env.WEB_BASE_URL}/activate?token=${params.invitationToken}`;

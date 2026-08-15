@@ -15,6 +15,7 @@ import {
   ForbiddenError,
   NotFoundError,
 } from '../../lib/errors.js';
+import { extractId } from '../../lib/mongo.js';
 import { generateTeacherId } from '../../lib/studentId.js';
 import type {
   CreateTeacherProfileDto,
@@ -114,7 +115,7 @@ export class TeacherService {
 
     // Enforce branch access
     const isOrgWide = ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role);
-    if (!isOrgWide && String(user.branch) !== actor.branch) {
+    if (!isOrgWide && extractId(user.branch) !== actor.branch) {
       throw new ForbiddenError('You can only create teacher profiles in your branch');
     }
 

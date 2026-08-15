@@ -137,49 +137,63 @@ export const documentsApi = {
     api.get<{ url: string }>(`/documents/${id}/download`),
 
   upload: async (
-    metadata: UploadDocumentMetadata,
-    file: File,
-  ): Promise<DocumentEntity> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('studentId', metadata.studentId);
-    formData.append('documentType', metadata.documentType);
-    formData.append('documentName', metadata.documentName);
-    if (metadata.applicationId) formData.append('applicationId', metadata.applicationId);
-    if (metadata.description) formData.append('description', metadata.description);
-    if (metadata.expiryDate) formData.append('expiryDate', metadata.expiryDate);
-    if (metadata.notes) formData.append('notes', metadata.notes);
+  metadata: UploadDocumentMetadata,
+  file: File,
+): Promise<DocumentEntity> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('studentId', metadata.studentId);
+  formData.append('documentType', metadata.documentType);
+  formData.append('documentName', metadata.documentName);
+  if (metadata.applicationId) formData.append('applicationId', metadata.applicationId);
+  if (metadata.description) formData.append('description', metadata.description);
+  if (metadata.expiryDate) formData.append('expiryDate', metadata.expiryDate);
+  if (metadata.notes) formData.append('notes', metadata.notes);
 
-    // Direct fetch (bypasses axios for multipart)
-    const response = await fetch('/api/v1/documents/upload', {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-    });
+  // Use same base URL as api client
+  const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
+  const response = await fetch(`${baseURL}/documents/upload`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+  });
 
-    const data = await response.json();
-    if (!data.success) {
-      throw new Error(data.error?.message || 'Upload failed');
-    }
-    return data.data;
-  },
+  let data: any;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(`Upload failed with status ${response.status}`);
+  }
 
-  uploadNewVersion: async (id: string, file: File): Promise<DocumentEntity> => {
-    const formData = new FormData();
-    formData.append('file', file);
+  if (!response.ok || !data.success) {
+    throw new Error(data?.error?.message || `Upload failed (${response.status})`);
+  }
+  return data.data;
+},
 
-    const response = await fetch(`/api/v1/documents/${id}/version`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-    });
+uploadNewVersion: async (id: string, file: File): Promise<DocumentEntity> => {
+  const formData = new FormData();
+  formData.append('file', file);
 
-    const data = await response.json();
-    if (!data.success) {
-      throw new Error(data.error?.message || 'Upload failed');
-    }
-    return data.data;
-  },
+  const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
+  const response = await fetch(`${baseURL}/documents/${id}/version`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+  });
+
+  let data: any;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(`Upload failed with status ${response.status}`);
+  }
+
+  if (!response.ok || !data.success) {
+    throw new Error(data?.error?.message || `Upload failed (${response.status})`);
+  }
+  return data.data;
+},
 
   markUnderReview: (id: string): Promise<DocumentEntity> =>
     api.post<DocumentEntity>(`/documents/${id}/review`),

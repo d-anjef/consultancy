@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Form,
@@ -96,9 +95,10 @@ export function ApplicationStatusTransitionDialog({
             Change Application Status
           </DialogTitle>
           {application && (
-            <DialogDescription className="flex items-center gap-2">
-              Current: <ApplicationStatusBadge status={application.status} />
-            </DialogDescription>
+            <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1.5">
+              <span>Current:</span>
+              <ApplicationStatusBadge status={application.status} />
+            </div>
           )}
         </DialogHeader>
 

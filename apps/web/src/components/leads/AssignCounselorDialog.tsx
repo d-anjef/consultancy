@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserCheck } from 'lucide-react';
+import { UserCheck, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import {
@@ -43,8 +43,10 @@ type AssignFormValues = z.infer<typeof assignSchema>;
 interface CounselorOption {
   id: string;
   email: string;
+  status: string;
   role: { code: string };
   profile: { firstName: string; lastName: string };
+  branch: { id: string; name: string } | null;
 }
 
 function useCounselors(branchId?: string) {
@@ -54,7 +56,6 @@ function useCounselors(branchId?: string) {
       api.get<CounselorOption[]>('/users', {
         roleCode: 'COUNSELOR',
         branchId,
-        status: 'ACTIVE',
         limit: 100,
       }),
     enabled: !!branchId,
@@ -76,6 +77,13 @@ export function AssignCounselorDialog({
   const assign = useAssignCounselor(lead?.id ?? '');
   const { data: counselors = [], isLoading: loadingCounselors } = useCounselors(
     lead?.branch.id,
+  );
+
+  const activeCounselors = counselors.filter(
+    (c) => c.status === 'ACTIVE' && c.branch?.id === lead?.branch.id,
+  );
+  const inactiveOrOtherBranch = counselors.filter(
+    (c) => c.status !== 'ACTIVE' || c.branch?.id !== lead?.branch.id,
   );
 
   const form = useForm<AssignFormValues>({
@@ -109,7 +117,8 @@ export function AssignCounselorDialog({
               Assigning for{' '}
               <span className="font-medium text-foreground">
                 {lead.personal.firstName} {lead.personal.lastName}
-              </span>
+              </span>{' '}
+              ({lead.branch.name})
             </DialogDescription>
           )}
         </DialogHeader>
@@ -137,15 +146,41 @@ export function AssignCounselorDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {counselors.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.profile.firstName} {c.profile.lastName}
-                        </SelectItem>
-                      ))}
-                      {!loadingCounselors && counselors.length === 0 && (
-                        <div className="px-3 py-2 text-xs text-muted-foreground">
-                          No counselors in this branch
+                      {activeCounselors.length === 0 &&
+                      inactiveOrOtherBranch.length === 0 ? (
+                        <div className="px-3 py-3 text-xs text-muted-foreground">
+                          No counselors in this branch. Create one first.
                         </div>
+                      ) : (
+                        <>
+                          {activeCounselors.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.profile.firstName} {c.profile.lastName}
+                            </SelectItem>
+                          ))}
+                          {inactiveOrOtherBranch.length > 0 && (
+                            <>
+                              <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-t border-border mt-1">
+                                Unavailable
+                              </div>
+                              {inactiveOrOtherBranch.map((c) => (
+                                <SelectItem
+                                  key={c.id}
+                                  value={c.id}
+                                  disabled
+                                >
+                                  {c.profile.firstName} {c.profile.lastName}
+                                  {c.status !== 'ACTIVE'
+                                    ? ` (${c.status})`
+                                    : ''}
+                                  {c.branch?.id !== lead?.branch.id
+                                    ? ' (wrong branch)'
+                                    : ''}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>
@@ -153,6 +188,16 @@ export function AssignCounselorDialog({
                 </FormItem>
               )}
             />
+
+            {activeCounselors.length === 0 && inactiveOrOtherBranch.length > 0 && (
+              <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-2 text-xs">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-yellow-600 mt-0.5" />
+                <p className="text-yellow-900">
+                  No ACTIVE counselors in this branch. Activate a counselor from
+                  the Users page or create a new one.
+                </p>
+              </div>
+            )}
 
             <DialogFooter className="gap-2">
               <Button

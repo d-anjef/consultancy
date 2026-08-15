@@ -71,11 +71,15 @@ interface Props {
 export function CreateTemplateDialog({ open, onOpenChange }: Props) {
   const create = useCreateTemplate();
 
-  const { data: visaCategories = [] } = useQuery({
-    queryKey: ['visa-categories', 'active'],
-    queryFn: () => api.get<VisaCategory[]>('/visa-categories/active'),
+  const { data: visaRaw } = useQuery({
+    queryKey: ['visa-categories', 'list'],
+    queryFn: () =>
+      api.get<VisaCategory[] | { items: VisaCategory[] }>('/visa-categories'),
     staleTime: 5 * 60_000,
   });
+  const visaCategories: VisaCategory[] = Array.isArray(visaRaw)
+    ? visaRaw
+    : ((visaRaw as any)?.items ?? []);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -132,7 +136,12 @@ export function CreateTemplateDialog({ open, onOpenChange }: Props) {
       form.reset();
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to create');
+      const msg = e?.message ?? 'Failed to create';
+      if (msg.toLowerCase().includes('exist') || msg.toLowerCase().includes('conflict')) {
+        toast.error('A template already exists for this visa category. Delete the existing one first.');
+      } else {
+        toast.error(msg);
+      }
     }
   }
 
@@ -159,11 +168,17 @@ export function CreateTemplateDialog({ open, onOpenChange }: Props) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {visaCategories.map((vc) => (
-                          <SelectItem key={vc.id} value={vc.id}>
-                            {vc.name}
-                          </SelectItem>
-                        ))}
+                        {visaCategories.length === 0 ? (
+                          <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                            No visa categories. Create one first at /visa-categories
+                          </div>
+                        ) : (
+                          visaCategories.map((vc) => (
+                            <SelectItem key={vc.id} value={vc.id}>
+                              {vc.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

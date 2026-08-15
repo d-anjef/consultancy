@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Form,
@@ -132,9 +131,10 @@ export function LeadStatusTransitionDialog({
             Update Lead Status
           </DialogTitle>
           {lead && (
-            <DialogDescription className="flex items-center gap-2">
-              Current: <LeadStatusBadge status={lead.status} />
-            </DialogDescription>
+              <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1.5">
+                <span>Current:</span>
+          <LeadStatusBadge status={lead.status} />
+          </div>
           )}
         </DialogHeader>
 

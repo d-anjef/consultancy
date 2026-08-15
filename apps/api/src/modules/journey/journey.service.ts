@@ -27,6 +27,7 @@ import type {
   UpdateMilestoneStatusDto,
   UpdateMilestoneNotesDto,
 } from './journey.validators.js';
+import { extractId } from '../../lib/mongo.js';
 
 export interface FormattedMilestoneTemplate {
   id: string;
@@ -297,7 +298,7 @@ export class JourneyService {
 
   private enforceStudentAccess(student: StudentDocument, actor: ActorContext): void {
     if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const studentBranchId = String(student.branch);
+    const studentBranchId = extractId(student.branch);
     // Handle populated branch
     const branchId =
       typeof student.branch === 'object' && student.branch !== null && '_id' in student.branch

@@ -66,6 +66,18 @@ interface ActorContext {
   branch: string | null;
 }
 
+/**
+ * Helper: Safely extract branch ID from either a populated Mongoose document
+ * or a raw ObjectId reference.
+ */
+function extractBranchId(branch: unknown): string | null {
+  if (!branch) return null;
+  if (typeof branch === 'string') return branch;
+  const b = branch as { _id?: unknown };
+  if (b._id) return String(b._id);
+  return String(branch);
+}
+
 export class CounselingService {
   async listCounseling(
     query: ListCounselingQueryDto,
@@ -110,7 +122,11 @@ export class CounselingService {
       );
     }
 
-    const leadBranchId = String((lead.branch as unknown as BranchDocument)._id);
+    const leadBranchId = extractBranchId(lead.branch);
+    if (!leadBranchId) {
+      throw new BusinessRuleError('Lead has no branch assigned');
+    }
+
     if (
       !ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role) &&
       leadBranchId !== actor.branch
@@ -121,7 +137,7 @@ export class CounselingService {
     const counselor = await userRepository.findById(data.counselorId);
     if (!counselor) throw new NotFoundError('Counselor', data.counselorId);
 
-    const counselorBranchId = counselor.branch ? String(counselor.branch) : null;
+    const counselorBranchId = extractBranchId(counselor.branch);
     if (counselorBranchId !== leadBranchId) {
       throw new BusinessRuleError('Counselor must be from the same branch as the lead');
     }

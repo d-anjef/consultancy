@@ -35,6 +35,7 @@ import type {
   TransferStudentBranchDto,
   ListStudentsQueryDto,
 } from './student.validators.js';
+import { extractId } from '../../lib/mongo.js';
 import type { PaginationMeta } from '@consultancy/types';
 
 export interface FormattedStudent {
@@ -375,7 +376,8 @@ export class StudentService {
     if (data.assignedCounselorId) {
       const counselor = await userRepository.findById(data.assignedCounselorId);
       if (!counselor) throw new NotFoundError('Counselor', data.assignedCounselorId);
-      if (counselor.branch && String(counselor.branch) !== String(newBranch._id)) {
+      const counselorBranchId = extractId(counselor.branch);
+      if (counselorBranchId !== String(newBranch._id)) {
         throw new BusinessRuleError(
           'Counselor must belong to the destination branch',
         );

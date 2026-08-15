@@ -30,6 +30,14 @@ import type {
 } from './lead.validators.js';
 import type { PaginationMeta } from '@consultancy/types';
 
+
+function extractBranchId(branch: unknown): string | null {
+  if (!branch) return null;
+  if (typeof branch === 'string') return branch;
+  const b = branch as { _id?: unknown };
+  if (b._id) return String(b._id);
+  return String(branch);
+}
 export interface FormattedLead {
   id: string;
   leadNumber: string;
@@ -286,24 +294,26 @@ export class LeadService {
   }
 
   async assignCounselor(
-    id: string,
-    data: AssignLeadDto,
-    actor: ActorContext,
-  ): Promise<FormattedLead> {
-    const existing = await leadRepository.findById(id);
-    if (!existing) throw new NotFoundError('Lead', id);
-    this.enforceBranchAccess(existing, actor);
+  id: string,
+  data: AssignLeadDto,
+  actor: ActorContext,
+): Promise<FormattedLead> {
+  const existing = await leadRepository.findById(id);
+  if (!existing) throw new NotFoundError('Lead', id);
+  this.enforceBranchAccess(existing, actor);
 
-    const counselor = await userRepository.findById(data.counselorId);
-    if (!counselor) throw new NotFoundError('Counselor', data.counselorId);
+  const counselor = await userRepository.findById(data.counselorId);
+  if (!counselor) throw new NotFoundError('Counselor', data.counselorId);
 
-    const leadBranchId = String((existing.branch as unknown as BranchDocument)._id);
-    const counselorBranchId = counselor.branch ? String(counselor.branch) : null;
-    if (counselorBranchId !== leadBranchId) {
-      throw new BusinessRuleError(
-        'Counselor must be assigned to the same branch as the lead',
-      );
-    }
+  const leadBranchId = extractBranchId(existing.branch);
+const counselorBranchId = extractBranchId(counselor.branch);
+  
+  if (counselorBranchId !== leadBranchId) {
+    throw new BusinessRuleError(
+      'Counselor must be assigned to the same branch as the lead',
+    );
+  }
+  // ... rest unchanged
 
     const updated = await leadRepository.assignCounselor(
       id,

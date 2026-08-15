@@ -5,6 +5,7 @@ import type {
   UpdateOwnProfileDto,
   ListUsersQueryDto,
 } from '@consultancy/validators';
+import { extractId } from '../../lib/mongo.js';
 import {
   ROLE_CODES,
   ORGANIZATION_WIDE_ROLE_CODES,
@@ -16,10 +17,12 @@ import { INVITATION_EXPIRY_MS } from '@consultancy/config';
 import { userRepository } from './user.repository.js';
 import { roleRepository } from '../roles/role.repository.js';
 import { branchRepository } from '../branches/branch.repository.js';
+import { teacherRepository } from '../teachers/teacher.repository.js';
 import type { UserDocument } from './user.model.js';
 import type { RoleDocument } from '../roles/role.model.js';
 import type { BranchDocument } from '../branches/branch.model.js';
 import { hashPassword, generateSecureToken } from '../../lib/crypto.js';
+import { generateTeacherId } from '../../lib/studentId.js';
 import {
   BusinessRuleError,
   ConflictError,
@@ -202,14 +205,47 @@ export class UserService {
       mustChangePassword: true,
     });
 
-    // 7. Send invitation email
+    // 6b. Auto-create teacher_profile if role is TEACHER
+    if (data.roleCode === ROLE_CODES.TEACHER && branchId) {
+      try {
+        const employeeId = await generateTeacherId();
+        await teacherRepository.create({
+          userId: created._id as Types.ObjectId,
+          branch: branchId,
+          employeeId,
+          qualification: undefined,
+          specialization: [],
+          experienceYears: undefined,
+          employmentType: 'FULL_TIME',
+          joinedDate: new Date(),
+          bio: undefined,
+          createdBy: new Types.ObjectId(actor.id),
+        });
+        console.log(
+          `[UserService] Auto-created teacher_profile ${employeeId} for user ${created.email}`,
+        );
+      } catch (err) {
+        console.error(
+          '[UserService] Failed to auto-create teacher_profile (non-blocking):',
+          err,
+        );
+        // User still created — admin can manually create teacher profile later
+      }
+    }
+
+    // 7. Send invitation email (non-blocking — log error but don't fail user creation)
     if (data.sendInvitation !== false) {
-      await emailService.sendInvitationEmail({
-        to: data.email,
-        recipientName: `${data.profile.firstName} ${data.profile.lastName}`,
-        invitationToken,
-        roleName: role.displayName,
-      });
+      try {
+        await emailService.sendInvitationEmail({
+          to: data.email,
+          recipientName: `${data.profile.firstName} ${data.profile.lastName}`,
+          invitationToken,
+          roleName: role.displayName,
+        });
+      } catch (err) {
+        console.error('[UserService] Invitation email failed (non-blocking):', err);
+        // User is still created — admin can resend invitation later
+      }
     }
 
     return this.formatUser(created);
@@ -232,7 +268,7 @@ export class UserService {
       if (!actor.branch) {
         throw new ForbiddenError('You must be assigned to a branch');
       }
-      if (!existing.branch || String(existing.branch) !== actor.branch) {
+      if (!existing.branch || extractId(existing.branch) !== actor.branch) {
         throw new ForbiddenError('You cannot edit users outside your branch');
       }
     }

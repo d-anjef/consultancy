@@ -1,8 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Users, Search } from 'lucide-react';
-import { useUsers } from '@/hooks/useUsers';
+import { Plus, Users, Search, Check, X, Mail } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  useUsers,
+  useActivateUser,
+  useDeactivateUser,
+  useResendInvitation,
+} from '@/hooks/useUsers';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PERMISSION_CODES } from '@consultancy/config';
 import { Button } from '@/components/ui/button';
@@ -29,12 +35,16 @@ const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'muted' | 'destruc
 };
 
 export default function UsersPage() {
-  const { hasAny } = usePermissions();
+  const { hasAny, has } = usePermissions();
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isLoading } = useUsers({ search: search || undefined, limit: 100 });
   const users = data?.items ?? [];
+
+  const activate = useActivateUser();
+  const deactivate = useDeactivateUser();
+  const resend = useResendInvitation();
 
   const canCreate = hasAny(
     PERMISSION_CODES.CREATE_USER_ADMIN,
@@ -43,6 +53,36 @@ export default function UsersPage() {
     PERMISSION_CODES.CREATE_USER_RECEPTIONIST,
     PERMISSION_CODES.CREATE_USER_TEACHER,
   );
+  const canEdit = has(PERMISSION_CODES.EDIT_USER);
+  const canDeactivate = has(PERMISSION_CODES.DEACTIVATE_USER);
+
+  async function handleActivate(id: string, name: string) {
+    try {
+      await activate.mutateAsync(id);
+      toast.success(`${name} activated`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to activate');
+    }
+  }
+
+  async function handleDeactivate(id: string, name: string) {
+    if (!confirm(`Deactivate ${name}?`)) return;
+    try {
+      await deactivate.mutateAsync(id);
+      toast.success(`${name} deactivated`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to deactivate');
+    }
+  }
+
+  async function handleResend(id: string, email: string) {
+    try {
+      await resend.mutateAsync(id);
+      toast.success(`Invitation resent to ${email}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to resend');
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -87,32 +127,83 @@ export default function UsersPage() {
                 <TableHead>Role</TableHead>
                 <TableHead>Branch</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((u) => (
-                <TableRow key={u.id} className="hover:bg-secondary/50">
-                  <TableCell className="font-medium">
-                    {u.profile.firstName} {u.profile.lastName}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {u.email}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="text-xxs">
-                      {u.role.displayName}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {u.branch?.name ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={STATUS_VARIANTS[u.status] ?? 'muted'}>
-                      {u.status.replace(/_/g, ' ')}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {users.map((u) => {
+                const fullName = `${u.profile.firstName} ${u.profile.lastName}`;
+                return (
+                  <TableRow key={u.id} className="hover:bg-secondary/50">
+                    <TableCell className="font-medium">{fullName}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {u.email}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xxs">
+                        {u.role.displayName}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {u.branch?.name ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_VARIANTS[u.status] ?? 'muted'}>
+                        {u.status.replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        {u.status === 'PENDING_ACTIVATION' && canEdit && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleActivate(u.id, fullName)}
+                              disabled={activate.isPending}
+                              title="Activate now (skip email)"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              Activate
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResend(u.id, u.email)}
+                              disabled={resend.isPending}
+                              title="Resend invitation email"
+                            >
+                              <Mail className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        {u.status === 'ACTIVE' && canDeactivate && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeactivate(u.id, fullName)}
+                            disabled={deactivate.isPending}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            Deactivate
+                          </Button>
+                        )}
+                        {u.status === 'INACTIVE' && canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleActivate(u.id, fullName)}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            Reactivate
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
