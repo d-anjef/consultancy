@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import {
@@ -10,22 +11,43 @@ import {
   Users as UsersIcon,
   Building2,
   GraduationCap,
+  Plus,
+  UserMinus,
 } from 'lucide-react';
-import { useClass } from '@/hooks/useClasses';
+import { useClass, useUnenrollStudents } from '@/hooks/useClasses';
+import { usePermissions } from '@/hooks/usePermissions';
+import { PERMISSION_CODES } from '@consultancy/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
+import { EnrollStudentsDialog } from '@/components/classes/EnrollStudentsDialog';
 
-const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_LABELS = [
+  'Sunday', 'Monday', 'Tuesday', 'Wednesday',
+  'Thursday', 'Friday', 'Saturday',
+];
+
+const STATUS_VARIANTS: Record<string, 'success' | 'muted' | 'warning' | 'destructive'> = {
+  ACTIVE: 'success',
+  COMPLETED: 'muted',
+  CANCELLED: 'destructive',
+  PAUSED: 'warning',
+};
 
 export default function ClassDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { has } = usePermissions();
+
+  const [enrollOpen, setEnrollOpen] = useState(false);
 
   const { data: cls, isLoading } = useClass(id);
+  const unenroll = useUnenrollStudents(id);
+
+  const canManage = has(PERMISSION_CODES.CREATE_CLASS);
 
   if (isLoading) return <LoadingState fullPage message="Loading class…" />;
 
@@ -44,6 +66,11 @@ export default function ClassDetailPage() {
     );
   }
 
+  async function handleUnenroll(studentId: string, name: string) {
+    if (!confirm(`Remove ${name} from this class?`)) return;
+    await unenroll.mutateAsync([studentId]);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -58,7 +85,7 @@ export default function ClassDetailPage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {cls.name}
           </h1>
-          <Badge variant={cls.status === 'ACTIVE' ? 'success' : 'muted'}>
+          <Badge variant={STATUS_VARIANTS[cls.status] ?? 'muted'}>
             {cls.status}
           </Badge>
         </div>
@@ -80,7 +107,7 @@ export default function ClassDetailPage() {
                 <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
                   Days
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   {cls.schedule.daysOfWeek.map((d) => (
                     <Badge key={d} variant="secondary" className="text-xs">
                       {DAY_LABELS[d]}
@@ -94,7 +121,7 @@ export default function ClassDetailPage() {
                     Time
                   </div>
                   <div className="font-mono text-foreground">
-                    {cls.schedule.startTime} — {cls.schedule.endTime}
+                    {cls.schedule.startTime} – {cls.schedule.endTime}
                   </div>
                 </div>
                 {cls.schedule.roomOrLocation && (
@@ -131,26 +158,46 @@ export default function ClassDetailPage() {
 
           {/* Enrolled Students */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <GraduationCap className="h-4 w-4" />
                 Enrolled Students ({cls.studentsCount})
               </CardTitle>
+              {canManage && cls.status === 'ACTIVE' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEnrollOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Enroll
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {cls.students.length === 0 ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">
                   No students enrolled yet.
+                  {canManage && cls.status === 'ACTIVE' && (
+                    <button
+                      onClick={() => setEnrollOpen(true)}
+                      className="ml-1 text-accent hover:underline"
+                    >
+                      Enroll students
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {cls.students.map((s) => (
                     <div
                       key={s.id}
-                      className="flex items-center justify-between gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-secondary/50"
-                      onClick={() => router.push(`/students/${s.id}`)}
+                      className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
                     >
-                      <div>
+                      <div
+                        className="min-w-0 flex-1 cursor-pointer hover:text-accent"
+                        onClick={() => router.push(`/students/${s.id}`)}
+                      >
                         <div className="font-medium text-sm text-foreground">
                           {s.firstName} {s.lastName}
                         </div>
@@ -158,6 +205,20 @@ export default function ClassDetailPage() {
                           {s.studentId}
                         </div>
                       </div>
+                      {canManage && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() =>
+                            handleUnenroll(s.id, `${s.firstName} ${s.lastName}`)
+                          }
+                          isLoading={unenroll.isPending}
+                          title="Remove from class"
+                        >
+                          <UserMinus className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -171,7 +232,9 @@ export default function ClassDetailPage() {
                 <CardTitle className="text-base">Notes</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{cls.notes}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">
+                  {cls.notes}
+                </p>
               </CardContent>
             </Card>
           )}
@@ -237,6 +300,12 @@ export default function ClassDetailPage() {
           </Card>
         </div>
       </div>
+
+      <EnrollStudentsDialog
+        cls={cls}
+        open={enrollOpen}
+        onOpenChange={setEnrollOpen}
+      />
     </div>
   );
 }

@@ -17,10 +17,12 @@ import {
   MapPin,
   Upload,
   Download,
+  Wallet,
 } from 'lucide-react';
 import { useStudent } from '@/hooks/useStudents';
 import { useApplications } from '@/hooks/useApplications';
 import { useDocuments, downloadDocument } from '@/hooks/useDocuments';
+import { useInvoices } from '@/hooks/useFinance';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PERMISSION_CODES } from '@consultancy/config';
 import { Button } from '@/components/ui/button';
@@ -30,11 +32,19 @@ import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
 import { StudentStatusBadge } from '@/components/students/StudentStatusBadge';
 import { ApplicationStatusBadge } from '@/components/applications/ApplicationStatusBadge';
 import { DocumentStatusBadge } from '@/components/documents/DocumentStatusBadge';
+import { InvoiceStatusBadge } from '@/components/finance/InvoiceStatusBadge';
 import { TransferBranchDialog } from '@/components/students/TransferBranchDialog';
 import { ArchiveStudentDialog } from '@/components/students/ArchiveStudentDialog';
 import { CreateApplicationDialog } from '@/components/applications/CreateApplicationDialog';
 import { UploadDocumentDialog } from '@/components/documents/UploadDocumentDialog';
+import { CreateInvoiceDialog } from '@/components/finance/CreateInvoiceDialog';
 import { formatFileSize } from '@/lib/utils/currency';
+import { formatNPR } from '@/lib/utils/currency';
+
+// Soft-lookup permission code — falls back gracefully if not defined
+const CREATE_INVOICE_PERM =
+  (PERMISSION_CODES as Partial<typeof PERMISSION_CODES>).CREATE_INVOICE ??
+  ('finance.invoice.create' as (typeof PERMISSION_CODES)[keyof typeof PERMISSION_CODES]);
 
 export default function StudentDetailPage() {
   const params = useParams();
@@ -46,15 +56,18 @@ export default function StudentDetailPage() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [createAppOpen, setCreateAppOpen] = useState(false);
   const [uploadDocOpen, setUploadDocOpen] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
 
   const { data: student, isLoading } = useStudent(id);
   const { data: appsData } = useApplications({ studentId: id, limit: 50 });
   const { data: docsData } = useDocuments({ studentId: id, limit: 50 });
+  const { data: invoicesData } = useInvoices({ studentId: id, limit: 20 });
 
   const canTransfer = has(PERMISSION_CODES.TRANSFER_STUDENT_BRANCH);
   const canArchive = has(PERMISSION_CODES.ARCHIVE_STUDENT);
   const canCreateApp = has(PERMISSION_CODES.CREATE_APPLICATION);
   const canUploadDoc = has(PERMISSION_CODES.UPLOAD_DOCUMENT);
+  const canCreateInvoice = has(CREATE_INVOICE_PERM);
 
   if (isLoading) return <LoadingState fullPage message="Loading student…" />;
 
@@ -76,6 +89,7 @@ export default function StudentDetailPage() {
 
   const applications = appsData?.items ?? [];
   const documents = docsData?.items ?? [];
+  const invoices = invoicesData?.items ?? [];
   const hasActiveApp = applications.some((a) => a.isActive);
 
   const studentFullName = `${student.personal.firstName} ${student.personal.lastName}`;
@@ -109,6 +123,12 @@ export default function StudentDetailPage() {
             <Button variant="outline" onClick={() => setUploadDocOpen(true)}>
               <Upload className="h-4 w-4" />
               Upload Document
+            </Button>
+          )}
+          {canCreateInvoice && (
+            <Button variant="outline" onClick={() => setCreateInvoiceOpen(true)}>
+              <Wallet className="h-4 w-4" />
+              New Invoice
             </Button>
           )}
           {canCreateApp && !hasActiveApp && (
@@ -309,9 +329,7 @@ export default function StudentDetailPage() {
                               {' · '}
                               {d.currentVersion?.file &&
                                 formatFileSize(d.currentVersion.file.sizeBytes)}
-                              {d.versionCount > 1 && (
-                                <> · v{d.versionCount}</>
-                              )}
+                              {d.versionCount > 1 && <> · v{d.versionCount}</>}
                             </div>
                           </div>
                         </div>
@@ -334,6 +352,61 @@ export default function StudentDetailPage() {
                           <Download className="h-3.5 w-3.5" />
                         </Button>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Finance / Invoices */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Invoices ({invoices.length})
+              </CardTitle>
+              {canCreateInvoice && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCreateInvoiceOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {invoices.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  No invoices yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {invoices.map((inv) => (
+                    <div
+                      key={inv.id}
+                      onClick={() => router.push(`/finance/invoices/${inv.id}`)}
+                      className="flex items-center justify-between gap-3 p-3 rounded-md border border-border hover:bg-secondary/50 cursor-pointer transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-mono text-xs text-muted-foreground">
+                          {inv.invoiceNumber}
+                        </div>
+                        <div className="text-sm font-medium text-foreground">
+                          {formatNPR(inv.totalAmount)}
+                          {inv.balanceAmount > 0 && (
+                            <span className="text-destructive text-xs ml-2">
+                              ({formatNPR(inv.balanceAmount)} due)
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xxs text-muted-foreground">
+                          Due {format(new Date(inv.dueDate), 'MMM dd, yyyy')}
+                        </div>
+                      </div>
+                      <InvoiceStatusBadge status={inv.status} />
                     </div>
                   ))}
                 </div>
@@ -427,6 +500,11 @@ export default function StudentDetailPage() {
         studentName={studentFullName}
         open={uploadDocOpen}
         onOpenChange={setUploadDocOpen}
+      />
+      <CreateInvoiceDialog
+        student={student}
+        open={createInvoiceOpen}
+        onOpenChange={setCreateInvoiceOpen}
       />
     </div>
   );

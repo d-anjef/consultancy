@@ -1,38 +1,51 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { AlertTriangle, Wallet, TrendingUp, FileText } from 'lucide-react';
+import { Plus, AlertTriangle, Wallet, TrendingUp, FileText } from 'lucide-react';
 import { useFinanceStats, useInvoices, usePayments } from '@/hooks/useFinance';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { InvoiceTable } from '@/components/finance/InvoiceTable';
 import { PaymentTable } from '@/components/finance/PaymentTable';
+import { CreateInvoiceDialog } from '@/components/finance/CreateInvoiceDialog';
+import { StudentPickerDialog } from '@/components/students/StudentPickerDialog';
 import { formatNPR } from '@/lib/utils/currency';
+import type { Student } from '@/lib/api/students';
 
 export default function FinancePage() {
   const [tab, setTab] = useState<'invoices' | 'payments' | 'overdue'>('invoices');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
   const { data: stats } = useFinanceStats();
 
-  const { data: invoicesData, isLoading: invoicesLoading } = useInvoices({
-    limit: 20,
-  });
-  const { data: paymentsData, isLoading: paymentsLoading } = usePayments({
-    limit: 20,
-  });
+  const { data: invoicesData, isLoading: invoicesLoading } = useInvoices({ limit: 20 });
+  const { data: paymentsData, isLoading: paymentsLoading } = usePayments({ limit: 20 });
   const { data: overdueData, isLoading: overdueLoading } = useInvoices({
     overdue: true,
     limit: 20,
   });
 
+  function handleStudentPicked(student: Student) {
+    setSelectedStudent(student);
+    setPickerOpen(false);
+    setInvoiceOpen(true);
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Finance</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Invoices, payments, and financial overview
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Finance</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Invoices, payments, and financial overview
+          </p>
+        </div>
+        <Button variant="accent" onClick={() => setPickerOpen(true)}>
+          <Plus className="h-4 w-4" />
+          New Invoice
+        </Button>
       </div>
 
       {stats && (
@@ -122,23 +135,31 @@ export default function FinancePage() {
       </div>
 
       {tab === 'invoices' && (
-        <InvoiceTable
-          invoices={invoicesData?.items ?? []}
-          isLoading={invoicesLoading}
-        />
+        <InvoiceTable invoices={invoicesData?.items ?? []} isLoading={invoicesLoading} />
       )}
-
       {tab === 'payments' && (
-        <PaymentTable
-          payments={paymentsData?.items ?? []}
-          isLoading={paymentsLoading}
-        />
+        <PaymentTable payments={paymentsData?.items ?? []} isLoading={paymentsLoading} />
+      )}
+      {tab === 'overdue' && (
+        <InvoiceTable invoices={overdueData?.items ?? []} isLoading={overdueLoading} />
       )}
 
-      {tab === 'overdue' && (
-        <InvoiceTable
-          invoices={overdueData?.items ?? []}
-          isLoading={overdueLoading}
+      {/* Dialogs */}
+      <StudentPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={handleStudentPicked}
+        title="Select Student for Invoice"
+        description="Choose the student you want to create an invoice for."
+      />
+      {selectedStudent && (
+        <CreateInvoiceDialog
+          student={selectedStudent}
+          open={invoiceOpen}
+          onOpenChange={(open) => {
+            setInvoiceOpen(open);
+            if (!open) setSelectedStudent(null);
+          }}
         />
       )}
     </div>
@@ -158,9 +179,7 @@ function TabButton({
     <button
       onClick={onClick}
       className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
-        active
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground'
+        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
       }`}
     >
       {children}
