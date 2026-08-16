@@ -154,6 +154,8 @@ export const applicationsApi = {
     };
   },
 
+  
+
   getById: (id: string): Promise<Application> => api.get<Application>(`/applications/${id}`),
 
   getHistory: (id: string): Promise<ApplicationStatusHistoryEntry[]> =>
