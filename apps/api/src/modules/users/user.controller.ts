@@ -114,6 +114,30 @@ export class UserController {
     }
   }
 
+  async setPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.currentUser) throw new UnauthorizedError();
+    const result = await userService.adminSetPassword(req.params.id!, req.body);
+
+    await auditService.log({
+      ...extractAuditContext(req),
+      action: 'USER_PASSWORD_SET_BY_ADMIN',
+      category: 'USER',
+      entity: {
+        type: 'USER',
+        id: result.user.id,
+        displayName: result.user.email,
+      },
+      additionalContext: { emailSent: result.emailSent },
+    });
+
+    sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+
   async deactivate(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.currentUser) throw new UnauthorizedError();

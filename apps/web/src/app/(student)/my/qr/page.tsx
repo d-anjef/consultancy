@@ -1,17 +1,27 @@
 'use client';
 
-import { useState } from 'react';
-import { QrCode, RotateCcw, Info } from 'lucide-react';
-import { useMyQR, useRotateQR } from '@/hooks/useAttendance';
+import { QrCode, Info, Download } from 'lucide-react';
+import { useMyQR } from '@/hooks/useAttendance';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function MyQRPage() {
+  const { user } = useAuth();
   const { data: qr, isLoading } = useMyQR();
-  const rotate = useRotateQR();
 
   if (isLoading) return <LoadingState fullPage message="Loading your QR…" />;
+
+  function handleDownload() {
+    if (!qr?.qrCodeDataUrl) return;
+    const link = document.createElement('a');
+    link.href = qr.qrCodeDataUrl;
+    link.download = `attendance-qr-${user?.profile.firstName ?? 'code'}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   return (
     <div className="space-y-6">
@@ -33,7 +43,7 @@ export default function MyQRPage() {
         </CardHeader>
         <CardContent className="flex flex-col items-center space-y-4">
           {qr?.qrCodeDataUrl ? (
-            <div className="p-4 bg-white rounded-xl shadow-sm">
+            <div className="p-4 bg-white rounded-xl shadow-sm border border-border">
               <img
                 src={qr.qrCodeDataUrl}
                 alt="Your attendance QR code"
@@ -46,18 +56,24 @@ export default function MyQRPage() {
             </div>
           )}
 
+          {user && (
+            <div className="text-center">
+              <p className="font-semibold text-foreground">
+                {user.profile.firstName} {user.profile.lastName}
+              </p>
+              <p className="text-xs text-muted-foreground font-mono">
+                {user.email}
+              </p>
+            </div>
+          )}
+
           <p className="text-sm text-muted-foreground text-center max-w-xs">
             Show this QR code to your teacher or scanner to mark your attendance.
           </p>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => rotate.mutate()}
-            isLoading={rotate.isPending}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Generate New QR
+          <Button variant="outline" size="sm" onClick={handleDownload}>
+            <Download className="h-3.5 w-3.5" />
+            Save to Device
           </Button>
         </CardContent>
       </Card>
@@ -68,9 +84,9 @@ export default function MyQRPage() {
           <div className="text-xs text-foreground">
             <p className="font-medium">Important</p>
             <ul className="mt-1 space-y-1 text-muted-foreground list-disc pl-4">
-              <li>Keep your QR private — don't share it</li>
-              <li>QR works for one scan per day</li>
-              <li>If compromised, click "Generate New QR"</li>
+              <li>This QR is unique to you — keep it private</li>
+              <li>Save it to your phone for quick access</li>
+              <li>If lost or compromised, contact admin to regenerate</li>
             </ul>
           </div>
         </CardContent>

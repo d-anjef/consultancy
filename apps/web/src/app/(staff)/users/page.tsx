@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Users, Search, Check, X, Mail } from 'lucide-react';
+import { Plus, Users, Search, Check, X, Mail, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useUsers,
@@ -26,6 +26,7 @@ import {
 import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
 import { CreateUserDialog } from '@/components/users/CreateUserDialog';
+import { SetPasswordDialog } from '@/components/users/SetPasswordDialog';
 
 const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'muted' | 'destructive'> = {
   ACTIVE: 'success',
@@ -38,6 +39,11 @@ export default function UsersPage() {
   const { hasAny, has } = usePermissions();
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [passwordDialog, setPasswordDialog] = useState<{
+    userId: string;
+    email: string;
+    name: string;
+  } | null>(null);
 
   const { data, isLoading } = useUsers({ search: search || undefined, limit: 100 });
   const users = data?.items ?? [];
@@ -157,14 +163,28 @@ export default function UsersPage() {
                         {u.status === 'PENDING_ACTIVATION' && canEdit && (
                           <>
                             <Button
-                              variant="outline"
+                              variant="accent"
+                              size="sm"
+                              onClick={() =>
+                                setPasswordDialog({
+                                  userId: u.id,
+                                  email: u.email,
+                                  name: fullName,
+                                })
+                              }
+                              title="Set password and activate"
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                              Set Password
+                            </Button>
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleActivate(u.id, fullName)}
                               disabled={activate.isPending}
-                              title="Activate now (skip email)"
+                              title="Activate without password"
                             >
                               <Check className="h-3.5 w-3.5" />
-                              Activate
                             </Button>
                             <Button
                               variant="ghost"
@@ -210,6 +230,16 @@ export default function UsersPage() {
       )}
 
       <CreateUserDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      {passwordDialog && (
+        <SetPasswordDialog
+          open={!!passwordDialog}
+          onOpenChange={(open) => !open && setPasswordDialog(null)}
+          userId={passwordDialog.userId}
+          userEmail={passwordDialog.email}
+          userName={passwordDialog.name}
+        />
+      )}
     </div>
   );
 }

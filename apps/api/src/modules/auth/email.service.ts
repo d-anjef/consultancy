@@ -131,6 +131,69 @@ ${env.ORG_NAME}
     await this.send({ to: params.to, subject, html, text });
   }
 
+  async sendCredentialsEmail(params: {
+  to: string;
+  recipientName: string;
+  email: string;
+  password: string;
+  roleName: string;
+}): Promise<void> {
+  const loginUrl = `${env.WEB_BASE_URL}/login`;
+  const subject = `Your ${env.ORG_NAME} Account Credentials`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><title>${subject}</title></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
+      <div style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h1 style="color: #111827; margin-top: 0;">Welcome, ${params.recipientName}!</h1>
+        <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+          Your account at <strong>${env.ORG_NAME}</strong> has been activated as a <strong>${params.roleName}</strong>.
+        </p>
+        <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+          Below are your login credentials. Please keep them safe and change your password after first login.
+        </p>
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 6px; margin: 24px 0;">
+          <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Email</p>
+          <p style="margin: 0 0 16px 0; color: #111827; font-size: 15px; font-family: 'SF Mono', Monaco, monospace;">${params.email}</p>
+          <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Password</p>
+          <p style="margin: 0; color: #111827; font-size: 15px; font-family: 'SF Mono', Monaco, monospace; font-weight: 600;">${params.password}</p>
+        </div>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${loginUrl}" style="background: #2563eb; color: white; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
+            Sign In
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+          Or copy this link: <a href="${loginUrl}" style="color: #2563eb;">${loginUrl}</a>
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+        <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+          &copy; ${new Date().getFullYear()} ${env.ORG_NAME}. All rights reserved.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `Welcome, ${params.recipientName}!
+
+Your account at ${env.ORG_NAME} has been activated as a ${params.roleName}.
+
+Login credentials:
+Email: ${params.email}
+Password: ${params.password}
+
+Sign in at: ${loginUrl}
+
+Please change your password after first login.
+
+— ${env.ORG_NAME}`;
+
+  await this.send({ to: params.to, subject, html, text });
+}
+
   async sendPasswordResetEmail(params: SendPasswordResetEmailParams): Promise<void> {
     const resetUrl = `${env.WEB_BASE_URL}/reset-password?token=${params.resetToken}`;
 

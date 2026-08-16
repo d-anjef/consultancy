@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { format } from 'date-fns';
-import { ClipboardCheck, CheckCircle, XCircle, Clock, MinusCircle } from 'lucide-react';
+import { ClipboardCheck, QrCode } from 'lucide-react';
 import { useAttendance, useDailySummary } from '@/hooks/useAttendance';
 import { useAuth } from '@/context/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -54,19 +55,27 @@ export default function AttendancePage() {
   });
 
   const records = data?.items ?? [];
-
   const studentSummary = summary?.STUDENT ?? {};
   const teacherSummary = summary?.TEACHER ?? {};
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Attendance
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Daily attendance records and summaries
-        </p>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Attendance
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Daily attendance records and summaries
+          </p>
+        </div>
+        <Link href="/attendance/scan">
+          <Button variant="accent">
+            <QrCode className="h-4 w-4" />
+            Scan QR
+          </Button>
+        </Link>
       </div>
 
       {/* Date + Filter */}

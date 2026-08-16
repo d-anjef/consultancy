@@ -80,4 +80,11 @@ router.post(
   (req, res, next) => userController.resendInvitation(req, res, next),
 );
 
+router.post(
+  '/:id/set-password',
+  authorize(PERMISSION_CODES.EDIT_USER),
+  validateParams(idParamSchema),
+  (req, res, next) => userController.setPassword(req, res, next),
+);
+
 export { router as userRoutes };

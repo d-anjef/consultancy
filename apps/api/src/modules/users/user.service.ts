@@ -361,6 +361,102 @@ export class UserService {
     });
   }
 
+  
+  async adminSetPassword(
+  id: string,
+  input: { password?: string; sendEmail?: boolean },
+): Promise<{ user: FormattedUser; plainPassword: string; emailSent: boolean }> {
+  const user = await userRepository.findById(id);
+  if (!user) throw new NotFoundError('User', id);
+
+  // Auto-generate strong password if not provided
+  // Format: X4kA-9mQz-Rn7T (readable, 14 chars, meets password policy)
+  const plainPassword = input.password ?? this.generateFriendlyPassword();
+
+  // Validate against policy (10+ chars, upper, lower, number, special)
+  const policyCheck = this.validatePasswordPolicy(plainPassword);
+  if (!policyCheck.valid) {
+    throw new BusinessRuleError(policyCheck.message);
+  }
+
+  const passwordHash = await hashPassword(plainPassword);
+
+  // Update user: set password, activate, clear invitation token
+  await userRepository.updatePassword(id, passwordHash);
+  await userRepository.update(id, {
+    status: 'ACTIVE',
+    emailVerified: true,
+    emailVerifiedAt: new Date(),
+  } as never);
+
+  const updated = await userRepository.findById(id);
+  if (!updated) throw new NotFoundError('User', id);
+  const role = updated.role as unknown as RoleDocument;
+
+  // Send email with credentials (non-blocking)
+  let emailSent = false;
+  if (input.sendEmail !== false) {
+    try {
+      await emailService.sendCredentialsEmail({
+        to: updated.email,
+        recipientName: `${updated.profile.firstName} ${updated.profile.lastName}`,
+        email: updated.email,
+        password: plainPassword,
+        roleName: role.displayName,
+      });
+      emailSent = true;
+    } catch {
+      // Non-blocking — admin still gets password from response
+      emailSent = false;
+    }
+  }
+
+  return {
+    user: this.formatUser(updated),
+    plainPassword,
+    emailSent,
+  };
+}
+
+private generateFriendlyPassword(): string {
+  // 14 chars: 3 groups of 4 separated by dashes
+  // Guaranteed to meet 10+ chars, upper, lower, number, special
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const nums = '23456789';
+  const pool = upper + lower + nums;
+
+  function pick(chars: string, n: number): string {
+    let out = '';
+    for (let i = 0; i < n; i++) {
+      out += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return out;
+  }
+
+  // Ensure at least 1 upper, 1 lower, 1 number, 1 special
+  const guaranteed = [
+    upper[Math.floor(Math.random() * upper.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    nums[Math.floor(Math.random() * nums.length)],
+    '!@#$%&'[Math.floor(Math.random() * 6)],
+  ];
+
+  const random = pick(pool, 8).split('');
+  const shuffled = [...guaranteed, ...random].sort(() => Math.random() - 0.5).join('');
+  // Format: XXXX-XXXX-XXXX for readability
+  return `${shuffled.slice(0, 4)}-${shuffled.slice(4, 8)}-${shuffled.slice(8, 12)}`;
+}
+
+private validatePasswordPolicy(password: string): { valid: boolean; message: string } {
+  if (password.length < 10) return { valid: false, message: 'Password must be at least 10 characters' };
+  if (!/[A-Z]/.test(password)) return { valid: false, message: 'Password must contain uppercase letter' };
+  if (!/[a-z]/.test(password)) return { valid: false, message: 'Password must contain lowercase letter' };
+  if (!/[0-9]/.test(password)) return { valid: false, message: 'Password must contain a number' };
+  if (!/[^A-Za-z0-9]/.test(password)) return { valid: false, message: 'Password must contain a special character' };
+  return { valid: true, message: 'OK' };
+}
+
   formatUser(user: UserDocument): FormattedUser {
     const role = user.role as unknown as RoleDocument;
     const branch = user.branch as unknown as BranchDocument | undefined;

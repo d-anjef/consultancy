@@ -61,3 +61,19 @@ export function useResendInvitation() {
     mutationFn: (id: string) => usersApi.resendInvitation(id),
   });
 }
+
+export function useSetUserPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      password,
+      sendEmail,
+    }: {
+      id: string;
+      password?: string;
+      sendEmail?: boolean;
+    }) => usersApi.setPassword(id, { password, sendEmail }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  });
+}

@@ -51,6 +51,17 @@ export interface ListUsersParams {
   status?: UserStatus;
 }
 
+export interface SetPasswordInput {
+  password?: string;
+  sendEmail?: boolean;
+}
+
+export interface SetPasswordResult {
+  user: UserEntity;
+  plainPassword: string;
+  emailSent: boolean;
+}
+
 export const usersApi = {
   list: async (params: ListUsersParams = {}) => {
     const items = await api.get<UserEntity[]>('/users', params as Record<string, unknown>);
@@ -73,4 +84,6 @@ export const usersApi = {
   deactivate: (id: string) => api.post<UserEntity>(`/users/${id}/deactivate`),
   activate: (id: string) => api.post<UserEntity>(`/users/${id}/activate`),
   resendInvitation: (id: string) => api.post(`/users/${id}/resend-invitation`),
+  setPassword: (id: string, input: SetPasswordInput): Promise<SetPasswordResult> =>
+    api.post<SetPasswordResult>(`/users/${id}/set-password`, input),
 };
