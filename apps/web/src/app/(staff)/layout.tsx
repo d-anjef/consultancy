@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PageLoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { Sidebar } from '@/components/shared/Sidebar/Sidebar';
 import { TopNav } from '@/components/shared/TopNav/TopNav';
+import { MobileSidebarProvider } from '@/components/shared/Sidebar/MobileSidebarContext';
 import { ROUTES } from '@/data/constants';
 
 export default function StaffLayout({ children }: { children: ReactNode }) {
@@ -21,7 +22,6 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Students should not access staff routes
     if (user?.role.code === 'STUDENT') {
       router.replace(ROUTES.MY_DASHBOARD);
     }
@@ -32,14 +32,16 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <TopNav />
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto p-6 lg:p-8">{children}</div>
-        </main>
+    <MobileSidebarProvider>
+      <div className="flex h-screen overflow-hidden bg-background">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <TopNav />
+          <main className="flex-1 overflow-y-auto">
+            <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">{children}</div>
+          </main>
+        </div>
       </div>
-    </div>
+    </MobileSidebarProvider>
   );
 }

@@ -259,3 +259,64 @@
     border-color: hsl(var(--accent)) !important;
   }
 }
+
+/* ─── Dashboard Animations ─── */
+@layer utilities {
+  /* Fade in + slide up (for cards on mount) */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Staggered animation delays for cards */
+  .animate-delay-0 { animation-delay: 0ms; }
+  .animate-delay-1 { animation-delay: 60ms; }
+  .animate-delay-2 { animation-delay: 120ms; }
+  .animate-delay-3 { animation-delay: 180ms; }
+  .animate-delay-4 { animation-delay: 240ms; }
+  .animate-delay-5 { animation-delay: 300ms; }
+  .animate-delay-6 { animation-delay: 360ms; }
+  .animate-delay-7 { animation-delay: 420ms; }
+
+  /* Bar grow animation */
+  @keyframes bar-grow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  .animate-bar-grow {
+    animation: bar-grow 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transform-origin: left center;
+  }
+
+  /* Vertical bar grow (for column charts) */
+  @keyframes bar-grow-vertical {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+
+  .animate-bar-grow-vertical {
+    animation: bar-grow-vertical 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transform-origin: bottom center;
+  }
+
+  /* Subtle pulse for live indicators */
+  @keyframes soft-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .animate-soft-pulse {
+    animation: soft-pulse 2s ease-in-out infinite;
+  }
+}
