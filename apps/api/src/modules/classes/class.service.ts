@@ -234,74 +234,90 @@ export class ClassService {
   }
 
   private enforceBranchAccess(cls: ClassDocument, actor: ActorContext): void {
-    if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const branchId = String((cls.branch as unknown as BranchDocument)._id);
-    if (branchId !== actor.branch) {
-      throw new ForbiddenError("You do not have access to this class's branch");
-    }
+  if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
+  const branch = cls.branch as unknown as BranchDocument | null;
+  const branchId = branch?._id ? String(branch._id) : null;
+  if (branchId !== actor.branch) {
+    throw new ForbiddenError("You do not have access to this class's branch");
   }
+}
 
   private format(c: ClassDocument): FormattedClass {
-    const branch = c.branch as unknown as BranchDocument;
-    const program = c.program as unknown as
-      | { _id: Types.ObjectId; code: string; name: string; type: string }
-      | undefined;
-    const level = c.languageLevel as unknown as
-      | { _id: Types.ObjectId; code: string; name: string; examType: string }
-      | undefined;
-    const teacher = c.teacher as unknown as TeacherProfileDocument & {
-      userId: UserDocument;
-    };
-    const students = (c.students as unknown as Array<{
-      _id: Types.ObjectId;
-      studentId: string;
-      personal: { firstName: string; lastName: string };
-    }>) ?? [];
+  const branch = c.branch as unknown as BranchDocument | null;
+  const program = c.program as unknown as
+    | { _id: Types.ObjectId; code: string; name: string; type: string }
+    | null
+    | undefined;
+  const level = c.languageLevel as unknown as
+    | { _id: Types.ObjectId; code: string; name: string; examType: string }
+    | null
+    | undefined;
+  const teacher = c.teacher as unknown as
+    | (TeacherProfileDocument & { userId: UserDocument | null })
+    | null;
+  const students = (c.students as unknown as Array<{
+    _id: Types.ObjectId;
+    studentId: string;
+    personal?: { firstName?: string; lastName?: string };
+  } | null>) ?? [];
 
-    return {
-      id: String(c._id),
-      classCode: c.classCode,
-      name: c.name,
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
-      program: program
-        ? {
-            id: String(program._id),
-            code: program.code,
-            name: program.name,
-            type: program.type,
-          }
-        : null,
-      languageLevel: level
-        ? {
-            id: String(level._id),
-            code: level.code,
-            name: level.name,
-            examType: level.examType,
-          }
-        : null,
-      teacher: {
-        id: String(teacher._id),
-        employeeId: teacher.employeeId,
-        firstName: teacher.userId.profile.firstName,
-        lastName: teacher.userId.profile.lastName,
-        email: teacher.userId.email,
-      },
-      students: students.map((s) => ({
-        id: String(s._id),
-        studentId: s.studentId,
-        firstName: s.personal.firstName,
-        lastName: s.personal.lastName,
-      })),
-      studentsCount: students.length,
-      schedule: c.schedule,
-      startDate: c.startDate,
-      endDate: c.endDate,
-      status: c.status,
-      notes: c.notes,
-      createdAt: c.createdAt,
-      updatedAt: c.updatedAt,
-    };
-  }
+  // Filter out null students (deleted references)
+  const validStudents = students.filter((s): s is NonNullable<typeof s> => !!s?._id);
+
+  return {
+    id: String(c._id),
+    classCode: c.classCode,
+    name: c.name,
+    branch: branch?._id
+      ? { id: String(branch._id), code: branch.code, name: branch.name }
+      : { id: '', code: 'N/A', name: 'Unknown Branch' },
+    program: program?._id
+      ? {
+          id: String(program._id),
+          code: program.code,
+          name: program.name,
+          type: program.type,
+        }
+      : null,
+    languageLevel: level?._id
+      ? {
+          id: String(level._id),
+          code: level.code,
+          name: level.name,
+          examType: level.examType,
+        }
+      : null,
+    teacher: teacher?._id
+      ? {
+          id: String(teacher._id),
+          employeeId: teacher.employeeId ?? '',
+          firstName: teacher.userId?.profile?.firstName ?? '',
+          lastName: teacher.userId?.profile?.lastName ?? '',
+          email: teacher.userId?.email ?? '',
+        }
+      : {
+          id: '',
+          employeeId: 'N/A',
+          firstName: 'Unassigned',
+          lastName: '',
+          email: '',
+        },
+    students: validStudents.map((s) => ({
+      id: String(s._id),
+      studentId: s.studentId ?? '',
+      firstName: s.personal?.firstName ?? '',
+      lastName: s.personal?.lastName ?? '',
+    })),
+    studentsCount: validStudents.length,
+    schedule: c.schedule,
+    startDate: c.startDate,
+    endDate: c.endDate,
+    status: c.status,
+    notes: c.notes,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  };
+}
 }
 
 export const classService = new ClassService();

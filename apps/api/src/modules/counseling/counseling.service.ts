@@ -400,54 +400,72 @@ export class CounselingService {
   }
 
   private enforceBranchAccess(counseling: CounselingDocument, actor: ActorContext): void {
-    if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const branchId = String((counseling.branch as unknown as BranchDocument)._id);
-    if (branchId !== actor.branch) {
-      throw new ForbiddenError("You do not have access to this counseling's branch");
-    }
+  if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
+  const branch = counseling.branch as unknown as BranchDocument | null;
+  const branchId = branch?._id ? String(branch._id) : null;
+  if (branchId !== actor.branch) {
+    throw new ForbiddenError("You do not have access to this counseling's branch");
   }
+}
 
   private format(c: CounselingDocument): FormattedCounseling {
-    const lead = c.lead as unknown as LeadDocument;
-    const branch = c.branch as unknown as BranchDocument;
-    const counselor = c.counselor as unknown as UserDocument;
+  const lead = c.lead as unknown as LeadDocument | null;
+  const branch = c.branch as unknown as BranchDocument | null;
+  const counselor = c.counselor as unknown as UserDocument | null;
 
-    return {
-      id: String(c._id),
-      counselingNumber: c.counselingNumber,
-      lead: {
-        id: String(lead._id),
-        leadNumber: lead.leadNumber,
-        firstName: lead.personal.firstName,
-        lastName: lead.personal.lastName,
-        status: lead.status,
-      },
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
-      counselor: {
-        id: String(counselor._id),
-        email: counselor.email,
-        firstName: counselor.profile.firstName,
-        lastName: counselor.profile.lastName,
-      },
-      scheduledDate: c.scheduledDate,
-      scheduledTime: c.scheduledTime,
-      durationMinutes: c.durationMinutes,
-      status: c.status,
-      attendedAt: c.attendedAt,
-      outcome: c.outcome
-        ? {
-            result: c.outcome.result,
-            notes: c.outcome.notes,
-            nextSteps: c.outcome.nextSteps,
-          }
-        : undefined,
-      followUpDate: c.followUpDate,
-      cancellationReason: c.cancellationReason,
-      cancelledAt: c.cancelledAt,
-      createdAt: c.createdAt,
-      updatedAt: c.updatedAt,
-    };
-  }
+  return {
+    id: String(c._id),
+    counselingNumber: c.counselingNumber,
+    lead: lead?._id
+      ? {
+          id: String(lead._id),
+          leadNumber: lead.leadNumber ?? '',
+          firstName: lead.personal?.firstName ?? '',
+          lastName: lead.personal?.lastName ?? '',
+          status: lead.status ?? '',
+        }
+      : {
+          id: '',
+          leadNumber: 'DELETED',
+          firstName: 'Deleted',
+          lastName: 'Lead',
+          status: '',
+        },
+    branch: branch?._id
+      ? { id: String(branch._id), code: branch.code, name: branch.name }
+      : { id: '', code: 'N/A', name: 'Unknown Branch' },
+    counselor: counselor?._id
+      ? {
+          id: String(counselor._id),
+          email: counselor.email,
+          firstName: counselor.profile?.firstName ?? '',
+          lastName: counselor.profile?.lastName ?? '',
+        }
+      : {
+          id: '',
+          email: 'unassigned',
+          firstName: 'Unassigned',
+          lastName: '',
+        },
+    scheduledDate: c.scheduledDate,
+    scheduledTime: c.scheduledTime,
+    durationMinutes: c.durationMinutes,
+    status: c.status,
+    attendedAt: c.attendedAt,
+    outcome: c.outcome
+      ? {
+          result: c.outcome.result,
+          notes: c.outcome.notes,
+          nextSteps: c.outcome.nextSteps,
+        }
+      : undefined,
+    followUpDate: c.followUpDate,
+    cancellationReason: c.cancellationReason,
+    cancelledAt: c.cancelledAt,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  };
+}
 }
 
 export const counselingService = new CounselingService();

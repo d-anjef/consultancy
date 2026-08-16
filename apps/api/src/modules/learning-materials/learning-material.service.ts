@@ -198,44 +198,54 @@ export class LearningMaterialService {
   }
 
   private format(m: LearningMaterialDocument): FormattedMaterial {
-    const level = m.languageLevel as unknown as
-      | { _id: Types.ObjectId; code: string; name: string; examType: string }
-      | undefined;
-    const uploader = m.uploadedBy as unknown as UserDocument;
-    const branch = m.branch as unknown as BranchDocument;
+  const level = m.languageLevel as unknown as
+    | { _id: Types.ObjectId; code: string; name: string; examType: string }
+    | null
+    | undefined;
+  const uploader = m.uploadedBy as unknown as UserDocument | null;
+  const branch = m.branch as unknown as BranchDocument | null;
 
-    return {
-      id: String(m._id),
-      title: m.title,
-      description: m.description,
-      category: m.category,
-      languageLevel: level
-        ? {
-            id: String(level._id),
-            code: level.code,
-            name: level.name,
-            examType: level.examType,
-          }
-        : null,
-      tags: m.tags ?? [],
-      file: {
-        originalName: m.file.originalName,
-        mimeType: m.file.mimeType,
-        sizeBytes: m.file.sizeBytes,
-      },
-      uploadedBy: {
-        id: String(uploader._id),
-        firstName: uploader.profile.firstName,
-        lastName: uploader.profile.lastName,
-        email: uploader.email,
-      },
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
-      isPublic: m.isPublic,
-      downloadCount: m.downloadCount,
-      createdAt: m.createdAt,
-      updatedAt: m.updatedAt,
-    };
-  }
+  return {
+    id: String(m._id),
+    title: m.title,
+    description: m.description,
+    category: m.category,
+    languageLevel: level?._id
+      ? {
+          id: String(level._id),
+          code: level.code,
+          name: level.name,
+          examType: level.examType,
+        }
+      : null,
+    tags: m.tags ?? [],
+    file: {
+      originalName: m.file.originalName,
+      mimeType: m.file.mimeType,
+      sizeBytes: m.file.sizeBytes,
+    },
+    uploadedBy: uploader?._id
+      ? {
+          id: String(uploader._id),
+          firstName: uploader.profile?.firstName ?? '',
+          lastName: uploader.profile?.lastName ?? '',
+          email: uploader.email,
+        }
+      : {
+          id: '',
+          firstName: 'Deleted',
+          lastName: 'User',
+          email: 'deleted@user',
+        },
+    branch: branch?._id
+      ? { id: String(branch._id), code: branch.code, name: branch.name }
+      : { id: '', code: 'N/A', name: 'Unknown Branch' },
+    isPublic: m.isPublic,
+    downloadCount: m.downloadCount,
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+  };
+}
 }
 
 export const learningMaterialService = new LearningMaterialService();

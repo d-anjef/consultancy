@@ -205,65 +205,77 @@ export class TaskService {
   }
 
   private enforceBranchAccess(task: TaskDocument, actor: ActorContext): void {
-    if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const branchId = String((task.branch as unknown as BranchDocument)._id);
-    if (branchId !== actor.branch) {
-      throw new ForbiddenError("You do not have access to this task's branch");
-    }
+  if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
+  const branch = task.branch as unknown as BranchDocument | null;
+  const branchId = branch?._id ? String(branch._id) : null;
+  if (branchId !== actor.branch) {
+    throw new ForbiddenError("You do not have access to this task's branch");
   }
+}
 
   private format(t: TaskDocument): FormattedTask {
-    const branch = t.branch as unknown as BranchDocument;
-    const assignee = t.assignedTo as unknown as UserDocument;
-    const creator = t.createdBy as unknown as UserDocument;
-    const completer = t.completedBy as unknown as UserDocument | undefined;
+  const branch = t.branch as unknown as BranchDocument | null;
+  const assignee = t.assignedTo as unknown as UserDocument | null;
+  const creator = t.createdBy as unknown as UserDocument | null;
+  const completer = t.completedBy as unknown as UserDocument | null | undefined;
 
-    const now = new Date();
-    const isOverdue =
-      t.dueDate < now &&
-      (t.status === TASK_STATUSES.OPEN || t.status === TASK_STATUSES.IN_PROGRESS);
+  const now = new Date();
+  const isOverdue =
+    t.dueDate < now &&
+    (t.status === TASK_STATUSES.OPEN || t.status === TASK_STATUSES.IN_PROGRESS);
 
-    return {
-      id: String(t._id),
-      taskNumber: t.taskNumber,
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
-      relatedTo: {
-        entityType: t.relatedTo.entityType,
-        entityId: String(t.relatedTo.entityId),
-      },
-      taskType: t.taskType,
-      title: t.title,
-      description: t.description,
-      assignedTo: {
-        id: String(assignee._id),
-        email: assignee.email,
-        firstName: assignee.profile.firstName,
-        lastName: assignee.profile.lastName,
-      },
-      priority: t.priority,
-      dueDate: t.dueDate,
-      status: t.status,
-      isOverdue,
-      completedAt: t.completedAt,
-      completedBy: completer
-        ? {
-            id: String(completer._id),
-            firstName: completer.profile.firstName,
-            lastName: completer.profile.lastName,
-          }
-        : null,
-      completionNotes: t.completionNotes,
-      cancelledAt: t.cancelledAt,
-      cancellationReason: t.cancellationReason,
-      createdBy: {
-        id: String(creator._id),
-        firstName: creator.profile.firstName,
-        lastName: creator.profile.lastName,
-      },
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-    };
-  }
+  return {
+    id: String(t._id),
+    taskNumber: t.taskNumber,
+    branch: branch?._id
+      ? { id: String(branch._id), code: branch.code, name: branch.name }
+      : { id: '', code: 'N/A', name: 'Unknown Branch' },
+    relatedTo: {
+      entityType: t.relatedTo.entityType,
+      entityId: String(t.relatedTo.entityId),
+    },
+    taskType: t.taskType,
+    title: t.title,
+    description: t.description,
+    assignedTo: assignee?._id
+      ? {
+          id: String(assignee._id),
+          email: assignee.email,
+          firstName: assignee.profile?.firstName ?? '',
+          lastName: assignee.profile?.lastName ?? '',
+        }
+      : {
+          id: '',
+          email: 'unassigned',
+          firstName: 'Unassigned',
+          lastName: '',
+        },
+    priority: t.priority,
+    dueDate: t.dueDate,
+    status: t.status,
+    isOverdue,
+    completedAt: t.completedAt,
+    completedBy: completer?._id
+      ? {
+          id: String(completer._id),
+          firstName: completer.profile?.firstName ?? '',
+          lastName: completer.profile?.lastName ?? '',
+        }
+      : null,
+    completionNotes: t.completionNotes,
+    cancelledAt: t.cancelledAt,
+    cancellationReason: t.cancellationReason,
+    createdBy: creator?._id
+      ? {
+          id: String(creator._id),
+          firstName: creator.profile?.firstName ?? '',
+          lastName: creator.profile?.lastName ?? '',
+        }
+      : { id: '', firstName: 'Deleted', lastName: 'User' },
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  };
+}
 }
 
 export const taskService = new TaskService();

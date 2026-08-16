@@ -161,41 +161,53 @@ export class TeacherService {
   }
 
   private enforceBranchAccess(teacher: TeacherProfileDocument, actor: ActorContext): void {
-    if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const branchId = String((teacher.branch as unknown as BranchDocument)._id);
-    if (branchId !== actor.branch) {
-      throw new ForbiddenError("You do not have access to this teacher's branch");
-    }
+  if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
+  const branch = teacher.branch as unknown as BranchDocument | null;
+  const branchId = branch?._id ? String(branch._id) : null;
+  if (branchId !== actor.branch) {
+    throw new ForbiddenError("You do not have access to this teacher's branch");
   }
+}
 
   private format(t: TeacherProfileDocument): FormattedTeacher {
-    const user = t.userId as unknown as UserDocument;
-    const branch = t.branch as unknown as BranchDocument;
+  const user = t.userId as unknown as UserDocument | null;
+  const branch = t.branch as unknown as BranchDocument | null;
 
-    return {
-      id: String(t._id),
-      employeeId: t.employeeId,
-      userId: String(user._id),
-      user: {
-        email: user.email,
-        firstName: user.profile.firstName,
-        lastName: user.profile.lastName,
-        phone: user.profile.phone,
-        profilePhotoUrl: user.profile.profilePhotoUrl,
-        status: user.status,
-      },
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
-      qualification: t.qualification,
-      specialization: t.specialization ?? [],
-      experienceYears: t.experienceYears,
-      employmentType: t.employmentType,
-      joinedDate: t.joinedDate,
-      bio: t.bio,
-      isActive: t.isActive,
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-    };
-  }
+  return {
+    id: String(t._id),
+    employeeId: t.employeeId,
+    userId: user?._id ? String(user._id) : '',
+    user: user?._id
+      ? {
+          email: user.email,
+          firstName: user.profile?.firstName ?? '',
+          lastName: user.profile?.lastName ?? '',
+          phone: user.profile?.phone ?? '',
+          profilePhotoUrl: user.profile?.profilePhotoUrl,
+          status: user.status,
+        }
+      : {
+          email: 'deleted@user',
+          firstName: 'Deleted',
+          lastName: 'User',
+          phone: '',
+          profilePhotoUrl: undefined,
+          status: 'DELETED',
+        },
+    branch: branch?._id
+      ? { id: String(branch._id), code: branch.code, name: branch.name }
+      : { id: '', code: 'N/A', name: 'Unknown Branch' },
+    qualification: t.qualification,
+    specialization: t.specialization ?? [],
+    experienceYears: t.experienceYears,
+    employmentType: t.employmentType,
+    joinedDate: t.joinedDate,
+    bio: t.bio,
+    isActive: t.isActive,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  };
+}
 }
 
 export const teacherService = new TeacherService();

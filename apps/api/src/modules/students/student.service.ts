@@ -410,66 +410,71 @@ export class StudentService {
       throw new ForbiddenError("You do not have access to this student's branch");
     }
   }
-
   private formatStudent(s: StudentDocument): FormattedStudent {
-    const branch = s.branch as unknown as BranchDocument;
-    const user = s.userId as unknown as UserDocument;
-    const counselor = s.assignedCounselor as unknown as UserDocument | undefined;
-    const lead = s.originLead as unknown as
-      | { _id: Types.ObjectId; leadNumber: string }
-      | undefined;
-    const app = s.currentApplication as unknown as
-      | { _id: Types.ObjectId; applicationNumber: string; status: string }
-      | undefined;
-    const creator = s.createdBy as unknown as UserDocument;
+  const branch = s.branch as unknown as BranchDocument | null;
+  const user = s.userId as unknown as UserDocument | null;
+  const counselor = s.assignedCounselor as unknown as UserDocument | null | undefined;
+  const lead = s.originLead as unknown as
+    | { _id: Types.ObjectId; leadNumber: string }
+    | null
+    | undefined;
+  const app = s.currentApplication as unknown as
+    | { _id: Types.ObjectId; applicationNumber: string; status: string }
+    | null
+    | undefined;
+  const creator = s.createdBy as unknown as UserDocument | null;
 
-    return {
-      id: String(s._id),
-      studentId: s.studentId,
-      userId: String(user._id),
-      userEmail: user.email,
-      userStatus: user.status,
-      branch: {
-        id: String(branch._id),
-        code: branch.code,
-        name: branch.name,
-      },
-      originLead: lead
-        ? { id: String(lead._id), leadNumber: lead.leadNumber }
-        : null,
-      assignedCounselor: counselor
-        ? {
-            id: String(counselor._id),
-            email: counselor.email,
-            firstName: counselor.profile.firstName,
-            lastName: counselor.profile.lastName,
-          }
-        : null,
-      personal: s.personal,
-      contact: s.contact,
-      emergencyContact: s.emergencyContact,
-      passport: s.passport,
-      education: s.education,
-      currentApplication: app
-        ? {
-            id: String(app._id),
-            applicationNumber: app.applicationNumber,
-            status: app.status,
-          }
-        : null,
-      status: s.status,
-      admissionDate: s.admissionDate,
-      notes: s.notes,
-      createdBy: {
-        id: String(creator._id),
-        email: creator.email,
-        firstName: creator.profile.firstName,
-        lastName: creator.profile.lastName,
-      },
-      createdAt: s.createdAt,
-      updatedAt: s.updatedAt,
-    };
-  }
+  return {
+    id: String(s._id),
+    studentId: s.studentId,
+    userId: user?._id ? String(user._id) : '',
+    userEmail: user?.email ?? 'unknown@deleted.user',
+    userStatus: user?.status ?? 'DELETED',
+    branch: branch?._id
+      ? {
+          id: String(branch._id),
+          code: branch.code,
+          name: branch.name,
+        }
+      : { id: '', code: 'N/A', name: 'Unknown Branch' },
+    originLead: lead?._id
+      ? { id: String(lead._id), leadNumber: lead.leadNumber }
+      : null,
+    assignedCounselor: counselor?._id
+      ? {
+          id: String(counselor._id),
+          email: counselor.email,
+          firstName: counselor.profile?.firstName ?? '',
+          lastName: counselor.profile?.lastName ?? '',
+        }
+      : null,
+    personal: s.personal,
+    contact: s.contact,
+    emergencyContact: s.emergencyContact,
+    passport: s.passport,
+    education: s.education,
+    currentApplication: app?._id
+      ? {
+          id: String(app._id),
+          applicationNumber: app.applicationNumber,
+          status: app.status,
+        }
+      : null,
+    status: s.status,
+    admissionDate: s.admissionDate,
+    notes: s.notes,
+    createdBy: creator?._id
+      ? {
+          id: String(creator._id),
+          email: creator.email,
+          firstName: creator.profile?.firstName ?? '',
+          lastName: creator.profile?.lastName ?? '',
+        }
+      : { id: '', email: 'deleted', firstName: 'Deleted', lastName: 'User' },
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+  };
+}
 }
 
 export const studentService = new StudentService();

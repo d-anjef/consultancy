@@ -354,72 +354,94 @@ export class ApplicationService {
   }
 
   private format(a: ApplicationDocument): FormattedApplication {
-    const student = a.student as unknown as {
-      _id: Types.ObjectId;
-      studentId: string;
-      personal: { firstName: string; lastName: string };
-      contact: { phone: string; email: string };
-    };
-    const branch = a.branch as unknown as BranchDocument;
-    const visa = a.visaCategory as unknown as {
-      _id: Types.ObjectId;
-      code: string;
-      name: string;
-    };
-    const program = a.program as unknown as {
-      _id: Types.ObjectId;
-      code: string;
-      name: string;
-      type: string;
-    };
-    const counselor = a.assignedCounselor as unknown as {
-      _id: Types.ObjectId;
-      email: string;
-      profile: { firstName: string; lastName: string };
-    };
+  const student = a.student as unknown as {
+    _id: Types.ObjectId;
+    studentId: string;
+    personal?: { firstName?: string; lastName?: string };
+    contact?: { phone?: string; email?: string };
+  } | null;
+  const branch = a.branch as unknown as BranchDocument | null;
+  const visa = a.visaCategory as unknown as {
+    _id: Types.ObjectId;
+    code: string;
+    name: string;
+  } | null;
+  const program = a.program as unknown as {
+    _id: Types.ObjectId;
+    code: string;
+    name: string;
+    type: string;
+  } | null;
+  const counselor = a.assignedCounselor as unknown as {
+    _id: Types.ObjectId;
+    email: string;
+    profile?: { firstName?: string; lastName?: string };
+  } | null;
 
-    return {
-      id: String(a._id),
-      applicationNumber: a.applicationNumber,
-      student: {
-        id: String(student._id),
-        studentId: student.studentId,
-        firstName: student.personal.firstName,
-        lastName: student.personal.lastName,
-        phone: student.contact.phone,
-        email: student.contact.email,
-      },
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
-      visaCategory: { id: String(visa._id), code: visa.code, name: visa.name },
-      program: {
-        id: String(program._id),
-        code: program.code,
-        name: program.name,
-        type: program.type,
-      },
-      schoolOrCompany: a.schoolOrCompany,
-      intake: a.intake,
-      assignedCounselor: {
-        id: String(counselor._id),
-        email: counselor.email,
-        firstName: counselor.profile.firstName,
-        lastName: counselor.profile.lastName,
-      },
-      status: a.status,
-      deadlines: a.deadlines,
-      notes: a.notes,
-      isActive: a.isActive,
-      submittedAt: a.submittedAt,
-      approvedAt: a.approvedAt,
-      rejectedAt: a.rejectedAt,
-      rejectionReason: a.rejectionReason,
-      completedAt: a.completedAt,
-      cancelledAt: a.cancelledAt,
-      cancellationReason: a.cancellationReason,
-      createdAt: a.createdAt,
-      updatedAt: a.updatedAt,
-    };
-  }
+  return {
+    id: String(a._id),
+    applicationNumber: a.applicationNumber,
+    student: student?._id
+      ? {
+          id: String(student._id),
+          studentId: student.studentId ?? '',
+          firstName: student.personal?.firstName ?? '',
+          lastName: student.personal?.lastName ?? '',
+          phone: student.contact?.phone ?? '',
+          email: student.contact?.email ?? '',
+        }
+      : {
+          id: '',
+          studentId: 'DELETED',
+          firstName: 'Deleted',
+          lastName: 'Student',
+          phone: '',
+          email: '',
+        },
+    branch: branch?._id
+      ? { id: String(branch._id), code: branch.code, name: branch.name }
+      : { id: '', code: 'N/A', name: 'Unknown Branch' },
+    visaCategory: visa?._id
+      ? { id: String(visa._id), code: visa.code, name: visa.name }
+      : { id: '', code: 'N/A', name: 'Unknown Visa' },
+    program: program?._id
+      ? {
+          id: String(program._id),
+          code: program.code,
+          name: program.name,
+          type: program.type,
+        }
+      : { id: '', code: 'N/A', name: 'Unknown Program', type: 'N/A' },
+    schoolOrCompany: a.schoolOrCompany,
+    intake: a.intake,
+    assignedCounselor: counselor?._id
+      ? {
+          id: String(counselor._id),
+          email: counselor.email,
+          firstName: counselor.profile?.firstName ?? '',
+          lastName: counselor.profile?.lastName ?? '',
+        }
+      : {
+          id: '',
+          email: 'unassigned',
+          firstName: 'Unassigned',
+          lastName: '',
+        },
+    status: a.status,
+    deadlines: a.deadlines,
+    notes: a.notes,
+    isActive: a.isActive,
+    submittedAt: a.submittedAt,
+    approvedAt: a.approvedAt,
+    rejectedAt: a.rejectedAt,
+    rejectionReason: a.rejectionReason,
+    completedAt: a.completedAt,
+    cancelledAt: a.cancelledAt,
+    cancellationReason: a.cancellationReason,
+    createdAt: a.createdAt,
+    updatedAt: a.updatedAt,
+  };
+}
 }
 
 export const applicationService = new ApplicationService();
