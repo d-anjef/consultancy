@@ -17,7 +17,7 @@ export interface ClassEntity {
     lastName: string;
     email: string;
   };
-  students: Array<{ id: string; studentId: string; firstName: string; lastName: string }>;
+  students: Array<{ id: string; userId: string; studentId: string; firstName: string; lastName: string }>;
   studentsCount: number;
   schedule: {
     daysOfWeek: number[];

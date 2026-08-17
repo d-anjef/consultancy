@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ClipboardCheck, QrCode } from 'lucide-react';
+import { ClipboardCheck, QrCode, Pencil } from 'lucide-react';
 import { useAttendance, useDailySummary } from '@/hooks/useAttendance';
 import { useAuth } from '@/context/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { PERMISSION_CODES } from '@consultancy/config';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -27,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
+import { ManualAttendanceDialog } from '@/components/attendance/ManualAttendanceDialog';
 import type { AttendanceStatus } from '@/lib/api/attendance';
 
 const STATUS_VARIANTS: Record<string, 'success' | 'destructive' | 'warning' | 'muted'> = {
@@ -38,10 +41,16 @@ const STATUS_VARIANTS: Record<string, 'success' | 'destructive' | 'warning' | 'm
 
 export default function AttendancePage() {
   const { user } = useAuth();
+  const { has } = usePermissions();
+
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]!,
   );
   const [statusFilter, setStatusFilter] = useState<AttendanceStatus | ''>('');
+  const [manualOpen, setManualOpen] = useState(false);
+
+  const canRecord = has(PERMISSION_CODES.RECORD_ATTENDANCE);
+  const canScan = has(PERMISSION_CODES.SCAN_QR_ATTENDANCE);
 
   const { data: summary } = useDailySummary(
     user?.branch?.id,
@@ -70,12 +79,22 @@ export default function AttendancePage() {
             Daily attendance records and summaries
           </p>
         </div>
-        <Link href="/attendance/scan">
-          <Button variant="accent">
-            <QrCode className="h-4 w-4" />
-            Scan QR
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {canRecord && (
+            <Button variant="outline" onClick={() => setManualOpen(true)}>
+              <Pencil className="h-4 w-4" />
+              Mark Manual
+            </Button>
+          )}
+          {canScan && (
+            <Link href="/attendance/scan">
+              <Button variant="accent">
+                <QrCode className="h-4 w-4" />
+                Scan QR
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Date + Filter */}
@@ -177,6 +196,14 @@ export default function AttendancePage() {
             icon={ClipboardCheck}
             title="No records"
             description={`No attendance records for ${format(new Date(selectedDate), 'PPP')}.`}
+            action={
+              canRecord ? (
+                <Button variant="accent" onClick={() => setManualOpen(true)}>
+                  <Pencil className="h-4 w-4" />
+                  Mark Manual Attendance
+                </Button>
+              ) : undefined
+            }
           />
         </Card>
       ) : (
@@ -209,8 +236,13 @@ export default function AttendancePage() {
                   <TableCell className="text-sm font-mono">
                     {format(new Date(r.scannedAt), 'hh:mm a')}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {r.method === 'QR_SCAN' ? 'QR Scan' : 'Manual'}
+                  <TableCell className="text-xs">
+                    <Badge
+                      variant={r.method === 'MANUAL' ? 'warning' : 'secondary'}
+                      className="text-xxs"
+                    >
+                      {r.method === 'QR_SCAN' ? 'QR Scan' : 'Manual'}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={STATUS_VARIANTS[r.status] ?? 'muted'}>
@@ -223,6 +255,9 @@ export default function AttendancePage() {
           </Table>
         </div>
       )}
+
+      {/* Manual Attendance Dialog */}
+      <ManualAttendanceDialog open={manualOpen} onOpenChange={setManualOpen} />
     </div>
   );
 }

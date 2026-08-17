@@ -17,7 +17,7 @@ const POPULATE = [
   },
   {
     path: 'students',
-    select: 'studentId personal.firstName personal.lastName',
+    select: 'studentId userId personal.firstName personal.lastName',  // ← added userId
   },
 ];
 

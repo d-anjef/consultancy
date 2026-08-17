@@ -41,7 +41,7 @@ export interface FormattedClass {
     lastName: string;
     email: string;
   };
-  students: Array<{ id: string; studentId: string; firstName: string; lastName: string }>;
+  students: Array<{ id: string; userId: string; studentId: string; firstName: string; lastName: string }>;
   studentsCount: number;
   schedule: ClassDocument['schedule'];
   startDate: Date;
@@ -257,6 +257,7 @@ export class ClassService {
     | null;
   const students = (c.students as unknown as Array<{
     _id: Types.ObjectId;
+    userId?: Types.ObjectId;
     studentId: string;
     personal?: { firstName?: string; lastName?: string };
   } | null>) ?? [];
@@ -303,11 +304,12 @@ export class ClassService {
           email: '',
         },
     students: validStudents.map((s) => ({
-      id: String(s._id),
-      studentId: s.studentId ?? '',
-      firstName: s.personal?.firstName ?? '',
-      lastName: s.personal?.lastName ?? '',
-    })),
+  id: String(s._id),
+  userId: s.userId ? String(s.userId) : '',
+  studentId: s.studentId ?? '',
+  firstName: s.personal?.firstName ?? '',
+  lastName: s.personal?.lastName ?? '',
+})),
     studentsCount: validStudents.length,
     schedule: c.schedule,
     startDate: c.startDate,
