@@ -1,118 +1,105 @@
-const CACHE_NAME = 'chiba-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/login',
-  '/dashboard',
-  '/manifest.json',
-];
+// Service Worker for Push Notifications
+// Version: bump this on every deployment to force update
+const SW_VERSION = '1.0.0';
+const CACHE_NAME = `chiba-app-v${SW_VERSION}`;
 
-// Install — cache static assets
+console.log(`[SW] Loading version ${SW_VERSION}`);
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
+  console.log(`[SW] Installing v${SW_VERSION}`);
+  // Take control immediately without waiting
   self.skipWaiting();
 });
 
-// Activate — clean old caches
 self.addEventListener('activate', (event) => {
+  console.log(`[SW] Activated v${SW_VERSION}`);
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      );
-    })
+    // Clean up old caches
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((name) => name.startsWith('chiba-app-') && name !== CACHE_NAME)
+          .map((name) => {
+            console.log(`[SW] Deleting old cache: ${name}`);
+            return caches.delete(name);
+          }),
+      ),
+    ),
   );
-  self.clients.claim();
+  // Take control of all open pages immediately
+  event.waitUntil(self.clients.claim());
 });
 
-// Fetch — network first, fallback to cache
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
-  // Skip non-GET requests
-  if (request.method !== 'GET') return;
-
-  // Skip API requests (always go to network)
-  if (request.url.includes('/api/')) return;
-
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        // Cache successful responses
-        if (response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Fallback to cache
-        return caches.match(request).then((cached) => {
-          return cached || new Response('Offline', { status: 503 });
-        });
-      })
-  );
+// Listen for messages from the page (e.g., "skip waiting")
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0]?.postMessage({ version: SW_VERSION });
+  }
 });
 
-// Push notification received
+// Receive push notification from server
 self.addEventListener('push', (event) => {
-  let data = { title: 'Chiba Education Center', body: 'New notification', url: '/dashboard' };
+  if (!event.data) return;
 
+  let payload;
   try {
-    if (event.data) {
-      data = event.data.json();
-    }
-  } catch (e) {
-    // Use defaults
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'Notification', body: event.data.text() };
   }
 
+  const {
+    title = 'Chiba Education Center',
+    body = '',
+    icon = '/icon-192.png',
+    badge = '/icon-192.png',
+    tag,
+    data = {},
+    requireInteraction = false,
+  } = payload;
+
   const options = {
-    body: data.body || 'You have a new notification',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
-    vibrate: [100, 50, 100],
-    data: {
-      url: data.url || '/dashboard',
-    },
-    actions: [
-      { action: 'open', title: 'Open' },
-      { action: 'dismiss', title: 'Dismiss' },
-    ],
-    tag: data.tag || 'default',
-    renotify: true,
+    body,
+    icon,
+    badge,
+    tag,
+    data,
+    requireInteraction,
+    vibrate: [200, 100, 200],
+    timestamp: Date.now(),
   };
 
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Chiba Education Center', options)
-  );
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Notification click
+// Handle notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  if (event.action === 'dismiss') return;
-
-  const url = event.notification.data?.url || '/dashboard';
+  const targetUrl = event.notification.data?.url || '/notifications';
+  const fullUrl = new URL(targetUrl, self.location.origin).href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Focus existing window if open
-      for (const client of clients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(url);
-          return client.focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus();
+          if ('navigate' in client) {
+            client.navigate(fullUrl);
+          }
+          return;
         }
       }
-      // Open new window
-      return self.clients.openWindow(url);
-    })
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(fullUrl);
+      }
+    }),
   );
+});
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  console.log('[SW] Subscription changed');
 });

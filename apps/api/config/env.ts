@@ -122,6 +122,11 @@ export const env = {
   QUEUE_RETRY_ATTEMPTS: optionalEnvNumber('QUEUE_RETRY_ATTEMPTS', 3),
   QUEUE_RETRY_BACKOFF_MS: optionalEnvNumber('QUEUE_RETRY_BACKOFF_MS', 5000),
 
+  // VAPID (Push Notifications)
+VAPID_PUBLIC_KEY: optionalEnv('VAPID_PUBLIC_KEY', ''),
+VAPID_PRIVATE_KEY: optionalEnv('VAPID_PRIVATE_KEY', ''),
+VAPID_CONTACT_EMAIL: optionalEnv('VAPID_CONTACT_EMAIL', 'admin@chibaeducation.com'),
+
   // CORS
   CORS_ALLOWED_ORIGINS: optionalEnv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
     .split(',')

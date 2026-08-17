@@ -8,6 +8,8 @@ import { Sidebar } from '@/components/shared/Sidebar/Sidebar';
 import { TopNav } from '@/components/shared/TopNav/TopNav';
 import { MobileSidebarProvider } from '@/components/shared/Sidebar/MobileSidebarContext';
 import { ROUTES } from '@/data/constants';
+import { IosInstallPrompt } from '@/components/push/IosInstallPrompt';
+import { AutoUpdater } from '@/components/push/UpdatePrompt';
 
 export default function StudentLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -40,6 +42,8 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
           <TopNav />
           <main className="flex-1 overflow-y-auto">
             <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">{children}</div>
+            <IosInstallPrompt />
+            <AutoUpdater />
           </main>
         </div>
       </div>

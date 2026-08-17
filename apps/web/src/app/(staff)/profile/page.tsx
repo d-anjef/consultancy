@@ -20,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { PushSettingsCard } from '@/components/push/PushSettingsCard';
 
 const profileSchema = z.object({
   firstName: z.string().trim().min(1, 'Required').max(100),
@@ -193,5 +194,9 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
     </div>
+
+    
   );
+
+  <PushSettingsCard />
 }

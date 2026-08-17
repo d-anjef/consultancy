@@ -63,68 +63,82 @@ export function CreateAnnouncementDialog({ open, onOpenChange, onSuccess }: Prop
   const [showConfirm, setShowConfirm] = useState(false);
 
   const { data: branchesData } = useQuery({
-    queryKey: ['branches-list'],
-    queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res: any = await api.get('/branches?limit=100');
-      const payload = res?.data ?? res;
-      return payload as { data: Branch[] };
-    },
-    enabled: open,
-  });
+  queryKey: ['branches-list'],
+  queryFn: async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res: any = await api.get('/branches?limit=100');
+    if (Array.isArray(res)) return { data: res };
+    if (Array.isArray(res?.data)) return { data: res.data };
+    if (Array.isArray(res?.data?.data)) return { data: res.data.data };
+    return { data: [] as Branch[] };
+  },
+  enabled: open,
+});
 
-  const branches: Branch[] = branchesData?.data ?? [];
+const branches: Branch[] = branchesData?.data ?? [];
 
   const previewMutation = useMutation({
-    mutationFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res: any = await api.post('/announcements/preview', {
-        audience,
-        branchIds: audience === 'BY_BRANCH' ? branchIds : undefined,
-        roleCodes: audience === 'BY_ROLE' ? roleCodes : undefined,
-        includeStudents,
-      });
-      const payload = (res?.data ?? res) as { data: { count: number } };
-      return payload.data;
-    },
-    onSuccess: (data) => {
-      setRecipientCount(data.count);
-      setShowConfirm(true);
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
-        ?.response?.data?.error?.message ?? 'Failed to preview';
-      toast.error(msg);
-    },
-  });
+  mutationFn: async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res: any = await api.post('/announcements/preview', {
+      audience,
+      branchIds: audience === 'BY_BRANCH' ? branchIds : undefined,
+      roleCodes: audience === 'BY_ROLE' ? roleCodes : undefined,
+      includeStudents,
+    });
+
+    // API returns: { success: true, data: { count: N } }
+    // Some clients unwrap res.data automatically, some don't — handle both
+    console.log('[Preview] Raw response:', res);
+    
+    // Try different response shapes
+    if (res?.count !== undefined) return res; // Already unwrapped fully
+    if (res?.data?.count !== undefined) return res.data; // Just success/data wrapped
+    if (res?.data?.data?.count !== undefined) return res.data.data; // Axios + wrapped
+    
+    console.error('[Preview] Unknown response shape:', res);
+    return { count: 0 };
+  },
+  onSuccess: (data) => {
+    console.log('[Preview] Success data:', data);
+    setRecipientCount(data.count);
+    setShowConfirm(true);
+  },
+  onError: (err: unknown) => {
+    const msg = (err as { response?: { data?: { error?: { message?: string } } } })
+      ?.response?.data?.error?.message ?? 'Failed to preview';
+    toast.error(msg);
+  },
+});
 
   const sendMutation = useMutation({
-    mutationFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res: any = await api.post('/announcements', {
-        title,
-        message,
-        category,
-        audience,
-        branchIds: audience === 'BY_BRANCH' ? branchIds : undefined,
-        roleCodes: audience === 'BY_ROLE' ? roleCodes : undefined,
-        includeStudents,
-        sendEmail,
-        sendInApp,
-      });
-      return res?.data ?? res;
-    },
-    onSuccess: () => {
-      toast.success('Announcement is being sent!');
-      handleClose();
-      onSuccess();
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
-        ?.response?.data?.error?.message ?? 'Failed to send announcement';
-      toast.error(msg);
-    },
-  });
+  mutationFn: async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res: any = await api.post('/announcements', {
+      title,
+      message,
+      category,
+      audience,
+      branchIds: audience === 'BY_BRANCH' ? branchIds : undefined,
+      roleCodes: audience === 'BY_ROLE' ? roleCodes : undefined,
+      includeStudents,
+      sendEmail,
+      sendInApp,
+    });
+    console.log('[Send Announcement] Raw response:', res);
+    return res;
+  },
+  onSuccess: () => {
+    toast.success('Announcement is being sent!');
+    handleClose();
+    onSuccess();
+  },
+  onError: (err: unknown) => {
+    const msg = (err as { response?: { data?: { error?: { message?: string } } } })
+      ?.response?.data?.error?.message ?? 'Failed to send announcement';
+    toast.error(msg);
+  },
+});
 
   function handleClose() {
     setTitle('');

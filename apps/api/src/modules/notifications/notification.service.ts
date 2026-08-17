@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { NotificationModel, type NotificationDocument, type NotificationCategory, type NotificationPriority } from './notification.model.js';
 import { createPaginationMeta } from '../../lib/pagination.js';
 import type { PaginationMeta } from '@consultancy/types';
+import { pushService } from '../push/push.service.js';
 
 export interface CreateNotificationInput {
   recipientId: string;
@@ -53,11 +54,32 @@ export class NotificationService {
       isMandatory: input.isMandatory ?? false,
     });
 
+    // ═══ AUTO-SEND PUSH for HIGH / URGENT notifications ═══
+    const priority = input.priority ?? 'NORMAL';
+    if (priority === 'HIGH' || priority === 'URGENT') {
+      pushService
+        .sendToUser(input.recipientId, {
+          title: input.title,
+          body: input.message,
+          tag: input.event,
+          data: {
+            url: input.metadata?.deepLink ?? '/notifications',
+            entityType: input.metadata?.entityType,
+            entityId: input.metadata?.entityId,
+          },
+          requireInteraction: priority === 'URGENT',
+        })
+        .catch(() => {
+          // Silent fail — don't block notification creation
+        });
+    }
+
     return this.format(notification.toObject() as NotificationDocument);
   }
 
   async createBulk(inputs: CreateNotificationInput[]): Promise<void> {
     if (inputs.length === 0) return;
+
     const docs = inputs.map((input) => ({
       recipient: new Types.ObjectId(input.recipientId),
       recipientRole: input.recipientRole,
@@ -72,6 +94,32 @@ export class NotificationService {
       isMandatory: input.isMandatory ?? false,
     }));
     await NotificationModel.insertMany(docs);
+
+    // ═══ AUTO-SEND PUSH for HIGH / URGENT bulk notifications ═══
+    const highPriorityInputs = inputs.filter(
+      (i) => i.priority === 'HIGH' || i.priority === 'URGENT',
+    );
+
+    if (highPriorityInputs.length > 0) {
+      const first = highPriorityInputs[0];
+      // TypeScript narrowing — first is guaranteed to exist after length check
+      if (!first) return;
+
+      const userIds = highPriorityInputs.map((i) => i.recipientId);
+
+      pushService
+        .sendToUsers(userIds, {
+          title: first.title,
+          body: first.message,
+          tag: first.event,
+          data: {
+            url: first.metadata?.deepLink ?? '/notifications',
+          },
+        })
+        .catch(() => {
+          // Silent fail
+        });
+    }
   }
 
   async listForUser(

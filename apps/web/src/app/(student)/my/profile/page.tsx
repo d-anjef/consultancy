@@ -18,6 +18,7 @@ import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
 import { StudentStatusBadge } from '@/components/students/StudentStatusBadge';
 import { EditMyProfileDialog } from '@/components/students/EditMyProfileDialog';
+import { PushSettingsCard } from '@/components/push/PushSettingsCard';
 
 export default function MyProfilePage() {
   const { data: student, isLoading } = useMyStudentProfile();
@@ -198,6 +199,7 @@ export default function MyProfilePage() {
     </div>
   );
 }
+<PushSettingsCard />
 
 function InfoField({
   label,

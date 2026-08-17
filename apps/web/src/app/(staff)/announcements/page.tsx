@@ -46,16 +46,23 @@ export default function AnnouncementsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['announcements'],
-    queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res: any = await api.get('/announcements?limit=50');
-      const payload = res?.data ?? res;
-      return payload as { data: Announcement[] };
-    },
-  });
+  queryKey: ['announcements'],
+  queryFn: async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res: any = await api.get('/announcements?limit=50');
+    console.log('[Announcements List] Raw response:', res);
+    
+    // Handle different response shapes
+    if (Array.isArray(res)) return { data: res };
+    if (Array.isArray(res?.data)) return { data: res.data };
+    if (Array.isArray(res?.data?.data)) return { data: res.data.data };
+    
+    console.error('[Announcements List] Unknown response shape:', res);
+    return { data: [] as Announcement[] };
+  },
+});
 
-  const announcements: Announcement[] = data?.data ?? [];
+const announcements: Announcement[] = data?.data ?? [];
 
   const stats = {
     total: announcements.length,

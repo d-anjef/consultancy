@@ -14,6 +14,19 @@ import { announcementController } from './announcement.controller.js';
 const router: Router = Router();
 const idParamSchema = z.object({ id: objectIdSchema });
 
+// ═══════════════════════════════════════════════════
+// ORDER MATTERS: Specific routes MUST come before /:id
+// ═══════════════════════════════════════════════════
+
+// Preview recipient count (specific — must come BEFORE /:id)
+router.post(
+  '/preview',
+  authorize(PERMISSION_CODES.SEND_NOTIFICATION),
+  validateBody(previewAnnouncementSchema),
+  (req, res, next) => announcementController.preview(req, res, next),
+);
+
+// List past announcements
 router.get(
   '/',
   authorize(PERMISSION_CODES.SEND_NOTIFICATION),
@@ -21,13 +34,7 @@ router.get(
   (req, res, next) => announcementController.list(req, res, next),
 );
 
-router.get(
-  '/:id',
-  authorize(PERMISSION_CODES.SEND_NOTIFICATION),
-  validateParams(idParamSchema),
-  (req, res, next) => announcementController.getById(req, res, next),
-);
-
+// Create + send announcement
 router.post(
   '/',
   authorize(PERMISSION_CODES.SEND_NOTIFICATION),
@@ -35,11 +42,12 @@ router.post(
   (req, res, next) => announcementController.create(req, res, next),
 );
 
-router.post(
-  '/preview',
+// Get one announcement (generic — MUST come LAST)
+router.get(
+  '/:id',
   authorize(PERMISSION_CODES.SEND_NOTIFICATION),
-  validateBody(previewAnnouncementSchema),
-  (req, res, next) => announcementController.preview(req, res, next),
+  validateParams(idParamSchema),
+  (req, res, next) => announcementController.getById(req, res, next),
 );
 
 export { router as announcementRoutes };
