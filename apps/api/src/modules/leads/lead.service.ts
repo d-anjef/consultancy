@@ -19,6 +19,8 @@ import {
   InvalidStateTransitionError,
   NotFoundError,
 } from '../../lib/errors.js';
+// Add alongside your other service imports
+import { emailService } from '../auth/email.service.js';
 import { generateLeadNumber } from '../../lib/studentId.js';
 import type {
   CreateLeadDto,
@@ -339,100 +341,156 @@ const counselorBranchId = extractBranchId(counselor.branch);
   }
 
   async intakeLead(data: LeadIntakeDto, systemUserId: string): Promise<FormattedLead> {
-    let branch: BranchDocument | null = null;
+  let branch: BranchDocument | null = null;
 
-    if (data.branchCode) {
-      branch = await branchRepository.findByCode(data.branchCode);
-      if (!branch) throw new NotFoundError('Branch', data.branchCode);
-    } else {
-      const activeBranches = await branchRepository.findActive();
-      if (activeBranches.length === 0) {
-        throw new BusinessRuleError('No active branches to receive leads');
-      }
-      branch = activeBranches[0]!;
+  if (data.branchCode) {
+    branch = await branchRepository.findByCode(data.branchCode);
+    if (!branch) throw new NotFoundError('Branch', data.branchCode);
+  } else {
+    const activeBranches = await branchRepository.findActive();
+    if (activeBranches.length === 0) {
+      throw new BusinessRuleError('No active branches to receive leads');
     }
+    branch = activeBranches[0]!;
+  }
 
-    if (!branch) {
-      throw new BusinessRuleError('Failed to resolve branch for lead intake');
+  if (!branch) {
+    throw new BusinessRuleError('Failed to resolve branch for lead intake');
+  }
+
+  const branchId = branch._id as Types.ObjectId;
+
+  // ── Duplicate phone check ──────────────────────────────────────────────
+  const existing = await leadRepository.findByPhone(data.phone, String(branchId));
+  if (
+    existing &&
+    existing.status !== LEAD_STATUSES.LOST &&
+    existing.status !== LEAD_STATUSES.CONVERTED
+  ) {
+    // Lead already exists — still send confirmation so student isn't confused
+    if (data.email) {
+      const formatted = this.formatLead(existing);
+      emailService
+        .sendLeadIntakeConfirmation({
+          toEmail: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          leadNumber: formatted.leadNumber,
+          phone: data.phone,
+        })
+        .catch((err) =>
+          console.error('[intake] duplicate confirmation email error:', err),
+        );
     }
+    return this.formatLead(existing);
+  }
 
-    const branchId = branch._id as Types.ObjectId;
+  // ── Create new lead ────────────────────────────────────────────────────
+  const leadNumber = await generateLeadNumber();
 
-    const existing = await leadRepository.findByPhone(data.phone, String(branchId));
-    if (
-      existing &&
-      existing.status !== LEAD_STATUSES.LOST &&
-      existing.status !== LEAD_STATUSES.CONVERTED
-    ) {
-      return this.formatLead(existing);
-    }
+  const sourceMetadata = normalizeSourceMetadata({
+    formId: data.formId,
+    externalRef: data.externalRef,
+  });
 
-    const leadNumber = await generateLeadNumber();
-
-    const sourceMetadata = normalizeSourceMetadata({
-      formId: data.formId,
-      externalRef: data.externalRef,
-    });
-
-    const created = await leadRepository.create({
-      leadNumber,
-      branch: branchId,
-      personal: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        middleName: data.middleName,
-        phone: data.phone,
-        email: data.email,
-        gender: data.gender,
-        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
-        occupation: data.occupation,
-      } as never,
-      address: (data.permanentAddress || data.presentAddress)
-        ? {
+  const created = await leadRepository.create({
+    leadNumber,
+    branch: branchId,
+    personal: {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      middleName: data.middleName,
+      phone: data.phone,
+      email: data.email,
+      gender: data.gender,
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+      occupation: data.occupation,
+    } as never,
+    address:
+      data.permanentAddress || data.presentAddress
+        ? ({
             permanentAddress: data.permanentAddress,
             presentAddress: data.presentAddress,
-          } as never
+          } as never)
         : undefined,
-      education: (data.lastEducation || data.japaneseLanguageHistory !== undefined)
-        ? {
+    education:
+      data.lastEducation || data.japaneseLanguageHistory !== undefined
+        ? ({
             lastEducation: data.lastEducation,
             faculty: data.faculty,
             japaneseLanguageHistory: data.japaneseLanguageHistory,
             japanesePassedYear: data.japanesePassedYear,
             japaneseInstitute: data.japaneseInstitute,
-          } as never
+          } as never)
         : undefined,
-      preference: (data.preferredCollege || data.preferredIntake || data.previousVisaApply !== undefined)
-        ? {
+    preference:
+      data.preferredCollege || data.preferredIntake || data.previousVisaApply !== undefined
+        ? ({
             preferredCollege: data.preferredCollege,
             periodOfStudy: data.periodOfStudy,
             preferredIntake: data.preferredIntake,
             previousVisaApply: data.previousVisaApply,
-          } as never
+          } as never)
         : undefined,
-      family: (data.fatherName || data.motherName)
-        ? {
+    family:
+      data.fatherName || data.motherName
+        ? ({
             fatherName: data.fatherName,
             fatherPhone: data.fatherPhone,
             motherName: data.motherName,
             motherPhone: data.motherPhone,
-          } as never
+          } as never)
         : undefined,
-      source: data.source as never,
-      sourceMetadata,
-      preferredCounseling:
-        data.preferredDate || data.preferredTime
-          ? {
-              date: data.preferredDate ? new Date(data.preferredDate) : undefined,
-              time: data.preferredTime,
-            }
-          : undefined,
-      notes: data.notes,
-      createdBy: new Types.ObjectId(systemUserId),
-    });
+    source: data.source as never,
+    sourceMetadata,
+    preferredCounseling:
+      data.preferredDate || data.preferredTime
+        ? {
+            date: data.preferredDate ? new Date(data.preferredDate) : undefined,
+            time: data.preferredTime,
+          }
+        : undefined,
+    notes: data.notes,
+    createdBy: new Types.ObjectId(systemUserId),
+  });
 
-    return this.formatLead(created);
+  const formatted = this.formatLead(created);
+
+  // ── Fire-and-forget emails ─────────────────────────────────────────────
+  // 1. Confirmation to student (only if they provided email)
+  if (data.email) {
+    emailService
+      .sendLeadIntakeConfirmation({
+        toEmail: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        leadNumber: formatted.leadNumber,
+        phone: data.phone,
+      })
+      .catch((err) =>
+        console.error('[intake] student confirmation email error:', err),
+      );
   }
+
+  // 2. Alert to admin
+  emailService
+    .sendLeadIntakeAdminAlert({
+      leadNumber: formatted.leadNumber,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone,
+      email: data.email,
+      lastEducation: data.lastEducation,
+      preferredIntake: data.preferredIntake,
+      notes: data.notes,
+    })
+    .catch((err) =>
+      console.error('[intake] admin alert email error:', err),
+    );
+
+  return formatted;
+}
+
 
   async getLeadStats(actor: ActorContext) {
     const isOrgWide = ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role);

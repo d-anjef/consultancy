@@ -120,6 +120,178 @@ export class EmailService {
     await this.send({ to: params.to, subject, html, text });
   }
 
+  // ─── Lead Intake: Confirmation to Student ─────────────────────────────
+async sendLeadIntakeConfirmation(params: {
+  toEmail: string;
+  firstName: string;
+  lastName: string;
+  leadNumber: string;
+  phone: string;
+}): Promise<void> {
+  const { toEmail, firstName, lastName, leadNumber, phone } = params;
+  const subject = `✅ Inquiry Received — ${leadNumber} | ${env.ORG_NAME}`;
+
+  const html = wrapEmail(subject, `
+    <h1 style="color:#111827;margin-top:0;">
+      Thank you, ${firstName}! 🎉
+    </h1>
+    <p style="color:#4b5563;font-size:16px;line-height:1.6;">
+      We've received your inquiry at <strong>${env.ORG_NAME}</strong>.
+      Our counseling team will review your details and reach out to you shortly.
+    </p>
+
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:20px;margin:24px 0;">
+      <p style="margin:0 0 4px;font-size:12px;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;">
+        Your Reference Number
+      </p>
+      <p style="margin:0;font-size:28px;font-weight:700;color:#EAB308;letter-spacing:0.05em;">
+        ${leadNumber}
+      </p>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;width:40%;">Full Name</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">
+          ${firstName} ${lastName}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">Phone</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">
+          ${phone}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;color:#6b7280;font-size:14px;">Email</td>
+        <td style="padding:10px 0;color:#111827;font-size:14px;font-weight:500;">
+          ${toEmail}
+        </td>
+      </tr>
+    </table>
+
+    <div style="background:#f9fafb;border-left:4px solid #EAB308;padding:16px;margin-bottom:24px;border-radius:0 8px 8px 0;">
+      <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
+        💡 <strong>What happens next?</strong><br/>
+        One of our counselors will contact you within <strong>1–2 business days</strong>
+        to schedule your free consultation session.
+      </p>
+    </div>
+
+    ${button(`${env.WEB_BASE_URL}`, 'Visit Our Website')}
+
+    <p style="color:#9ca3af;font-size:13px;line-height:1.6;margin-top:24px;">
+      Have urgent questions? Reply to this email or contact us at
+      <a href="mailto:${env.EMAIL_REPLY_TO}" style="color:#EAB308;">${env.EMAIL_REPLY_TO}</a>
+    </p>
+  `);
+
+  const text = `Thank you ${firstName}!\n\nWe received your inquiry at ${env.ORG_NAME}.\nReference: ${leadNumber}\n\nOur team will contact you within 1-2 business days.\n\n— ${env.ORG_NAME}`;
+
+  await this.send({ to: toEmail, subject, html, text });
+}
+
+// ─── Lead Intake: Admin Alert ──────────────────────────────────────────
+async sendLeadIntakeAdminAlert(params: {
+  leadNumber: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+  lastEducation?: string;
+  preferredIntake?: string;
+  notes?: string;
+}): Promise<void> {
+  const {
+    leadNumber,
+    firstName,
+    lastName,
+    phone,
+    email,
+    lastEducation,
+    preferredIntake,
+    notes,
+  } = params;
+
+  const subject = `🔔 New Lead: ${firstName} ${lastName} — ${leadNumber}`;
+  const adminEmail = env.EMAIL_REPLY_TO;
+  const dashboardUrl = `${env.WEB_BASE_URL}/leads`;
+
+  const html = wrapEmail(subject, `
+    <h1 style="color:#111827;margin-top:0;">
+      📋 New Lead from Google Form
+    </h1>
+    <p style="color:#4b5563;font-size:16px;line-height:1.6;">
+      A new inquiry has been submitted via <strong>Google Form</strong>
+      and automatically added to the system.
+    </p>
+
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:24px 0;">
+      <p style="margin:0;font-size:13px;color:#92400e;">
+        Lead Reference:
+        <strong style="color:#EAB308;font-size:20px;margin-left:8px;">${leadNumber}</strong>
+      </p>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;width:40%;">Full Name</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">
+          ${firstName} ${lastName}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">Phone</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">
+          ${phone}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">Email</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">
+          ${email ?? '—'}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">Education</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">
+          ${lastEducation ?? '—'}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">Preferred Intake</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">
+          ${preferredIntake ?? '—'}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;color:#6b7280;font-size:14px;">Message / Notes</td>
+        <td style="padding:10px 0;color:#111827;font-size:14px;font-weight:500;">
+          ${notes ?? '—'}
+        </td>
+      </tr>
+    </table>
+
+    <div style="background:#f9fafb;border-left:4px solid #EAB308;padding:16px;margin-bottom:24px;border-radius:0 8px 8px 0;">
+      <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
+        ⚡ <strong>Action required:</strong> Please assign a counselor to this lead
+        at your earliest convenience.
+      </p>
+    </div>
+
+    ${button(dashboardUrl, 'View Lead in Dashboard')}
+
+    <p style="color:#9ca3af;font-size:13px;line-height:1.6;margin-top:24px;">
+      This lead was automatically created via the Google Form intake system.
+      Source: <strong>GOOGLE_FORM</strong>
+    </p>
+  `);
+
+  const text = `New lead received!\n\nName: ${firstName} ${lastName}\nPhone: ${phone}\nEmail: ${email ?? '—'}\nReference: ${leadNumber}\n\nView in dashboard: ${dashboardUrl}\n\n— ${env.ORG_NAME} System`;
+
+  await this.send({ to: adminEmail, subject, html, text });
+}
+
   // ─── Existing: Credentials ─────────────────────────
   async sendCredentialsEmail(params: {
     to: string;
@@ -526,6 +698,8 @@ async sendAnnouncementEmail(params: {
   await this.send({ to: params.to, subject, html, text });
 }
 
+
+
   // ─── Staff: Document Needs Verification ────────────
   async sendDocumentNeedsVerification(params: {
     to: string;
@@ -556,6 +730,9 @@ async sendAnnouncementEmail(params: {
     const text = `Document ${params.documentNumber} (${params.documentName}) from ${params.studentName} needs verification.\n\nReview: ${docUrl}`;
     await this.send({ to: params.to, subject, html, text });
   }
+  
 }
+
+
 
 export const emailService = new EmailService();
