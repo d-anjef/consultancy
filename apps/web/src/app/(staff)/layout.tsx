@@ -34,14 +34,16 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
   }
 
   return (
+    
     <MobileSidebarProvider>
+      <PushPermissionBanner />
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <TopNav />
           <main className="flex-1 overflow-y-auto">
             <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">{children}</div>
-            <PushPermissionBanner />
+            
             <AutoUpdater />
           </main>
         </div>

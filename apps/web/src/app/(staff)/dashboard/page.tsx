@@ -12,9 +12,6 @@ import {
   ArrowUpRight,
   Building2,
   ArrowRight,
-  Search,
-  Bell,
-  Settings,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -35,10 +32,6 @@ import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
 import { cn } from '@/lib/utils';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatCurrency(amount: number) {
-  return `Rs. ${amount.toLocaleString('en-NP')}`;
-}
 
 function formatCurrencyShort(amount: number) {
   if (amount >= 10000000) return `Rs. ${(amount / 10000000).toFixed(2)}Cr`;
@@ -81,7 +74,7 @@ export default function DashboardPage() {
   const pendingDocCount =
     (docStats?.byStatus?.SUBMITTED ?? 0) + (docStats?.byStatus?.UNDER_REVIEW ?? 0);
 
-  // Collection metrics for the split-progress-bar (like reference)
+  // Collection metrics for the split-progress-bar
   const totalPaid = financeStats?.totalPaid ?? 0;
   const totalOutstanding = financeStats?.totalOutstanding ?? 0;
   const totalInvoiced = financeStats?.totalInvoiced ?? 0;
@@ -96,13 +89,16 @@ export default function DashboardPage() {
       ? Math.round(((leadStats.byStatus?.CONVERTED ?? 0) / leadStats.total) * 100)
       : 0;
 
+  const activeStudentsValue =
+    studentStats?.byStatus?.ACTIVE ?? overview?.activeStudents ?? 0;
+
   return (
     <div className="space-y-6">
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/*  ROW 1 — HERO SECTION (financial split-bar + hero image)            */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div className="grid gap-4 lg:grid-cols-5 animate-fade-in-up animate-delay-0">
-        {/* Left: Financial split bar (like Apartments Sold/Rented) — 3 cols */}
+        {/* Left: Financial split bar — 3 cols */}
         <div className="lg:col-span-3">
           <Card className="h-full border-0 bg-neutral-50/50 shadow-sm">
             <CardContent className="p-6">
@@ -145,7 +141,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Split progress bar — black + orange + track */}
+              {/* Split progress bar */}
               <div className="mt-6 flex h-2.5 w-full overflow-hidden rounded-full bg-neutral-200">
                 <div
                   className="h-full bg-foreground transition-all duration-1000 ease-out"
@@ -209,19 +205,14 @@ export default function DashboardPage() {
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </div>
-                {studentStatsLoading ? (
-                  <Skeleton className="h-8 w-16 bg-white/20" />
-                ) : (
-                  <p className="mt-1 text-3xl font-bold tabular-nums">
-                  <AnimatedNumber
-                    value={
-                      studentStats?.byStatus?.ACTIVE ??
-                      overview?.activeStudents ??
-                      0
-                    }
-                  />
-                  </p>
-                )}
+              {/* ─── FIXED: Skeleton outside <p> ─── */}
+              {studentStatsLoading ? (
+                <Skeleton className="mt-1 h-8 w-16 bg-white/20" />
+              ) : (
+                <p className="mt-1 text-3xl font-bold tabular-nums">
+                  <AnimatedNumber value={activeStudentsValue} />
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -260,7 +251,7 @@ export default function DashboardPage() {
           </PermissionGuard>
         </div>
 
-        {/* Right: Lead Pipeline (like the horizontal bars in reference) — 3 cols */}
+        {/* Right: Lead Pipeline — 3 cols */}
         <PermissionGuard requires={[PERMISSION_CODES.VIEW_LEAD]}>
           <div className="lg:col-span-3 animate-fade-in-up animate-delay-3">
             <Card className="h-full border-0 bg-neutral-50/50 shadow-sm">
@@ -355,7 +346,7 @@ export default function DashboardPage() {
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <CalendarClock className="h-4 w-4" />
-                  Today's Sessions
+                  Today&apos;s Sessions
                 </CardTitle>
                 <Badge variant="secondary" className="rounded-full">
                   {counselingLoading ? '…' : todaySessions.length}
@@ -540,16 +531,17 @@ export default function DashboardPage() {
                     <p className="mt-2 text-xs text-muted-foreground">
                       All payments up to date
                     </p>
-                    <p className="mt-3 text-2xl font-bold tabular-nums text-foreground">
-                      {financeLoading ? (
-                        <Skeleton className="h-8 w-24 mx-auto" />
-                      ) : (
+                    {/* ─── FIXED: Skeleton outside <p> ─── */}
+                    {financeLoading ? (
+                      <Skeleton className="mt-3 h-8 w-24 mx-auto" />
+                    ) : (
+                      <p className="mt-3 text-2xl font-bold tabular-nums text-foreground">
                         <AnimatedNumber
                           value={paidPct}
                           format={(n) => `${n}%`}
                         />
-                      )}
-                    </p>
+                      </p>
+                    )}
                     <p className="text-xxs text-muted-foreground">
                       collection rate
                     </p>
@@ -660,10 +652,9 @@ function BigStatCard({
   );
 }
 
-// ─── Barcode-style chart (decorative but functional) ──────────────────────
+// ─── Barcode-style chart ──────────────────────────────────────────────────
 
 function BarcodeChart() {
-  // Generate consistent "chart" bars — random but stable
   const bars = [
     2, 8, 4, 12, 6, 3, 10, 5, 14, 7, 2, 9, 4, 11, 6, 3, 8, 5, 12,
   ];
@@ -759,20 +750,17 @@ function LeadPipelineChart({ byStatus }: { byStatus: Record<string, number> }) {
             className="group block"
           >
             <div className="flex items-center gap-3">
-              {/* Label */}
               <div className="w-24 shrink-0">
                 <p className="text-xxs font-medium uppercase tracking-wider text-foreground truncate">
                   {status.replace(/_/g, ' ')}
                 </p>
               </div>
 
-              {/* Bar */}
               <div className="relative h-6 flex-1 overflow-hidden rounded-full bg-neutral-200">
                 <div
                   className="h-full rounded-full bg-foreground transition-all duration-1000 ease-out group-hover:opacity-80"
                   style={{ width: `${pct}%` }}
                 />
-                {/* Percentage badge inside bar */}
                 <div
                   className="absolute top-1/2 -translate-y-1/2 rounded-full bg-foreground px-2 py-0.5 text-xxs font-bold text-white"
                   style={{
@@ -785,7 +773,6 @@ function LeadPipelineChart({ byStatus }: { byStatus: Record<string, number> }) {
                 </div>
               </div>
 
-              {/* Count */}
               <div className="w-10 shrink-0 text-right">
                 <span className="text-sm font-bold tabular-nums text-foreground">
                   <AnimatedNumber value={count} />
@@ -799,7 +786,7 @@ function LeadPipelineChart({ byStatus }: { byStatus: Record<string, number> }) {
   );
 }
 
-// ─── Status Pill (for Documents section) ──────────────────────────────────
+// ─── Status Pill ──────────────────────────────────────────────────────────
 
 function StatusPill({
   color,
