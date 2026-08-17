@@ -1,245 +1,203 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Users, Search, Check, X, Mail, KeyRound } from 'lucide-react';
-import { toast } from 'sonner';
-import {
-  useUsers,
-  useActivateUser,
-  useDeactivateUser,
-  useResendInvitation,
-} from '@/hooks/useUsers';
-import { usePermissions } from '@/hooks/usePermissions';
-import { PERMISSION_CODES } from '@consultancy/config';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { User, Mail, Building2, ShieldCheck, Save } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api/client';
+import { useMutation } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
-import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
-import { CreateUserDialog } from '@/components/users/CreateUserDialog';
-import { SetPasswordDialog } from '@/components/users/SetPasswordDialog';
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { PushSettingsCard } from '@/components/push/PushSettingsCard';
 
-const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'muted' | 'destructive'> = {
-  ACTIVE: 'success',
-  PENDING_ACTIVATION: 'warning',
-  INACTIVE: 'muted',
-  SUSPENDED: 'destructive',
-};
+const profileSchema = z.object({
+  firstName: z.string().trim().min(1, 'Required').max(100),
+  lastName: z.string().trim().min(1, 'Required').max(100),
+  phone: z.string().trim().min(7).max(20),
+});
 
-export default function UsersPage() {
-  const { hasAny, has } = usePermissions();
-  const [search, setSearch] = useState('');
-  const [createOpen, setCreateOpen] = useState(false);
-  const [passwordDialog, setPasswordDialog] = useState<{
-    userId: string;
-    email: string;
-    name: string;
-  } | null>(null);
+type ProfileFormValues = z.infer<typeof profileSchema>;
 
-  const { data, isLoading } = useUsers({ search: search || undefined, limit: 100 });
-  const users = data?.items ?? [];
+export default function ProfilePage() {
+  const { user, refresh } = useAuth();
+  const [success, setSuccess] = useState(false);
 
-  const activate = useActivateUser();
-  const deactivate = useDeactivateUser();
-  const resend = useResendInvitation();
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      firstName: user?.profile.firstName ?? '',
+      lastName: user?.profile.lastName ?? '',
+      phone: user?.profile.phone ?? '',
+    },
+  });
 
-  const canCreate = hasAny(
-    PERMISSION_CODES.CREATE_USER_ADMIN,
-    PERMISSION_CODES.CREATE_USER_BRANCH_MANAGER,
-    PERMISSION_CODES.CREATE_USER_COUNSELOR,
-    PERMISSION_CODES.CREATE_USER_RECEPTIONIST,
-    PERMISSION_CODES.CREATE_USER_TEACHER,
-  );
-  const canEdit = has(PERMISSION_CODES.EDIT_USER);
-  const canDeactivate = has(PERMISSION_CODES.DEACTIVATE_USER);
+  const updateProfile = useMutation({
+    mutationFn: (data: ProfileFormValues) =>
+      api.patch('/users/me/profile', data),
+    onSuccess: async () => {
+      setSuccess(true);
+      await refresh();
+      setTimeout(() => setSuccess(false), 3000);
+    },
+  });
 
-  async function handleActivate(id: string, name: string) {
-    try {
-      await activate.mutateAsync(id);
-      toast.success(`${name} activated`);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to activate');
-    }
-  }
-
-  async function handleDeactivate(id: string, name: string) {
-    if (!confirm(`Deactivate ${name}?`)) return;
-    try {
-      await deactivate.mutateAsync(id);
-      toast.success(`${name} deactivated`);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to deactivate');
-    }
-  }
-
-  async function handleResend(id: string, email: string) {
-    try {
-      await resend.mutateAsync(id);
-      toast.success(`Invitation resent to ${email}`);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to resend');
-    }
-  }
+  if (!user) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Users</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage staff and student accounts
-          </p>
-        </div>
-        {canCreate && (
-          <Button variant="accent" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New User
-          </Button>
-        )}
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          My Profile
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your account information
+        </p>
       </div>
 
-      <div className="relative max-w-xs">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search users…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 h-9 text-sm"
-        />
-      </div>
+      {/* ─── Account Info (Read-only) ─── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Account Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                Email
+              </p>
+              <div className="flex items-center gap-2 text-foreground">
+                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                {user.email}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                Role
+              </p>
+              <Badge variant="secondary">{user.role.displayName}</Badge>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                Branch
+              </p>
+              <div className="flex items-center gap-2 text-foreground">
+                <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                {user.branch?.name ?? 'Organization-wide'}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                Permissions
+              </p>
+              <div className="flex items-center gap-2 text-foreground">
+                <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                {user.role.permissions.length} active
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {isLoading ? (
-        <LoadingState message="Loading users…" />
-      ) : users.length === 0 ? (
-        <Card>
-          <EmptyState icon={Users} title="No users found" />
-        </Card>
-      ) : (
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((u) => {
-                const fullName = `${u.profile.firstName} ${u.profile.lastName}`;
-                return (
-                  <TableRow key={u.id} className="hover:bg-secondary/50">
-                    <TableCell className="font-medium">{fullName}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {u.email}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xxs">
-                        {u.role.displayName}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {u.branch?.name ?? '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANTS[u.status] ?? 'muted'}>
-                        {u.status.replace(/_/g, ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        {u.status === 'PENDING_ACTIVATION' && canEdit && (
-                          <>
-                            <Button
-                              variant="accent"
-                              size="sm"
-                              onClick={() =>
-                                setPasswordDialog({
-                                  userId: u.id,
-                                  email: u.email,
-                                  name: fullName,
-                                })
-                              }
-                              title="Set password and activate"
-                            >
-                              <KeyRound className="h-3.5 w-3.5" />
-                              Set Password
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleActivate(u.id, fullName)}
-                              disabled={activate.isPending}
-                              title="Activate without password"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleResend(u.id, u.email)}
-                              disabled={resend.isPending}
-                              title="Resend invitation email"
-                            >
-                              <Mail className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
-                        {u.status === 'ACTIVE' && canDeactivate && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeactivate(u.id, fullName)}
-                            disabled={deactivate.isPending}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                            Deactivate
-                          </Button>
-                        )}
-                        {u.status === 'INACTIVE' && canEdit && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleActivate(u.id, fullName)}
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                            Reactivate
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      {/* ─── Editable Profile ─── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Edit Profile
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {success && (
+            <div className="mb-4 rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
+              Profile updated successfully!
+            </div>
+          )}
 
-      <CreateUserDialog open={createOpen} onOpenChange={setCreateOpen} />
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit((data) => updateProfile.mutate(data))}
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        First Name <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Last Name <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-      {passwordDialog && (
-        <SetPasswordDialog
-          open={!!passwordDialog}
-          onOpenChange={(open) => !open && setPasswordDialog(null)}
-          userId={passwordDialog.userId}
-          userEmail={passwordDialog.email}
-          userName={passwordDialog.name}
-        />
-      )}
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Phone <span className="text-destructive">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="tel" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                variant="accent"
+                isLoading={updateProfile.isPending}
+                loadingText="Saving…"
+              >
+                <Save className="h-4 w-4" />
+                Save Changes
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      {/* ─── Push Notification Settings ─── */}
+      <PushSettingsCard />
     </div>
   );
 }

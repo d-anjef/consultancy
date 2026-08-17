@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
+import Link from 'next/link';
 import {
   User as UserIcon,
   Phone,
@@ -10,10 +11,17 @@ import {
   ShieldAlert,
   FileText,
   Edit,
+  UserCheck,
+  QrCode,
+  MapPin,
+  TrendingUp,
+  ArrowRight,
+  Wallet,
 } from 'lucide-react';
 import { useMyStudentProfile } from '@/hooks/useStudents';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/shared/LoadingState/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState/EmptyState';
 import { StudentStatusBadge } from '@/components/students/StudentStatusBadge';
@@ -36,15 +44,36 @@ export default function MyProfilePage() {
     );
   }
 
+  // ─── Profile Completeness Calculator ───
+  const totalFields = 14;
+  const filledFields = [
+    student.personal.dateOfBirth,
+    student.personal.gender,
+    student.personal.nationality,
+    student.personal.maritalStatus,
+    student.personal.fatherName,
+    student.personal.motherName,
+    student.contact.phone,
+    student.contact.alternatePhone,
+    student.contact.email,
+    student.contact.address?.street,
+    student.emergencyContact?.name,
+    student.emergencyContact?.phone,
+    student.assignedCounselor,
+    student.currentApplication,
+  ].filter(Boolean).length;
+
+  const completeness = Math.round((filledFields / totalFields) * 100);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      {/* ─── Header ─── */}
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
             Student Profile
           </p>
-          <div className="mt-1 flex items-center gap-3">
+          <div className="mt-1 flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               {student.personal.firstName} {student.personal.middleName}{' '}
               {student.personal.lastName}
@@ -56,14 +85,53 @@ export default function MyProfilePage() {
           </p>
         </div>
 
-        <Button variant="outline" onClick={() => setEditOpen(true)}>
-          <Edit className="h-4 w-4" />
-          Edit Contact Info
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/my/qr"
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            <QrCode className="h-4 w-4" />
+            My QR
+          </Link>
+          <Button variant="outline" onClick={() => setEditOpen(true)}>
+            <Edit className="h-4 w-4" />
+            Edit Contact
+          </Button>
+        </div>
       </div>
 
+      {/* ─── Profile Completeness Bar ─── */}
+      <Card className="border-0 bg-neutral-50/50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-semibold text-foreground">
+                Profile Completeness
+              </p>
+            </div>
+            <p className="text-lg font-bold tabular-nums text-foreground">
+              {completeness}%
+            </p>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+            <div
+              className="h-full rounded-full bg-accent transition-all duration-1000"
+              style={{ width: `${completeness}%` }}
+            />
+          </div>
+          {completeness < 100 && (
+            <p className="mt-2 text-xxs text-muted-foreground">
+              Update your info to keep your profile up-to-date.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* ═══ Left Column ═══ */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Personal Information */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -76,7 +144,9 @@ export default function MyProfilePage() {
                 {format(new Date(student.personal.dateOfBirth), 'PPP')}
               </InfoField>
               <InfoField label="Gender">{student.personal.gender}</InfoField>
-              <InfoField label="Nationality">{student.personal.nationality}</InfoField>
+              <InfoField label="Nationality">
+                {student.personal.nationality}
+              </InfoField>
               <InfoField label="Marital Status">
                 {student.personal.maritalStatus || '—'}
               </InfoField>
@@ -89,6 +159,7 @@ export default function MyProfilePage() {
             </CardContent>
           </Card>
 
+          {/* Contact Information */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -110,12 +181,20 @@ export default function MyProfilePage() {
                 </span>
               </InfoField>
               <InfoField label="Address">
-                {student.contact.address.street}, {student.contact.address.city},{' '}
-                {student.contact.address.district}, {student.contact.address.province}
+                <span className="flex items-start gap-1">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <span>
+                    {student.contact.address.street},{' '}
+                    {student.contact.address.city},{' '}
+                    {student.contact.address.district},{' '}
+                    {student.contact.address.province}
+                  </span>
+                </span>
               </InfoField>
             </CardContent>
           </Card>
 
+          {/* Emergency Contact */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -123,36 +202,61 @@ export default function MyProfilePage() {
                 Emergency Contact
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4 text-sm">
-              <InfoField label="Name">{student.emergencyContact.name}</InfoField>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+              <InfoField label="Name">
+                {student.emergencyContact.name}
+              </InfoField>
               <InfoField label="Relationship">
                 {student.emergencyContact.relationship}
               </InfoField>
-              <InfoField label="Phone">{student.emergencyContact.phone}</InfoField>
+              <InfoField label="Phone">
+                {student.emergencyContact.phone}
+              </InfoField>
             </CardContent>
           </Card>
 
+          {/* Current Application */}
           {student.currentApplication && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Current Application
                 </CardTitle>
+                <Link
+                  href="/my/application"
+                  className={buttonVariants({
+                    variant: 'ghost',
+                    size: 'sm',
+                    className: 'h-7 px-2 text-xs',
+                  })}
+                >
+                  View Details
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
               </CardHeader>
               <CardContent className="text-sm">
-                <div className="font-mono text-xs text-muted-foreground">
-                  {student.currentApplication.applicationNumber}
-                </div>
-                <div className="mt-1 text-foreground">
-                  Status: {student.currentApplication.status}
+                <div className="flex items-center justify-between rounded-lg border border-border bg-neutral-50/50 p-3">
+                  <div>
+                    <div className="font-mono text-xs text-muted-foreground">
+                      {student.currentApplication.applicationNumber}
+                    </div>
+                    <div className="mt-1 font-medium text-foreground">
+                      Application Status
+                    </div>
+                  </div>
+                  <Badge variant="secondary">
+                    {student.currentApplication.status}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
           )}
         </div>
 
+        {/* ═══ Right Column ═══ */}
         <div className="space-y-6">
+          {/* Account Info */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Account</CardTitle>
@@ -169,25 +273,85 @@ export default function MyProfilePage() {
               </InfoField>
               {student.assignedCounselor && (
                 <InfoField label="Counselor">
-                  {student.assignedCounselor.firstName}{' '}
-                  {student.assignedCounselor.lastName}
+                  <span className="flex items-center gap-1">
+                    <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                    {student.assignedCounselor.firstName}{' '}
+                    {student.assignedCounselor.lastName}
+                  </span>
                 </InfoField>
               )}
+
+              {/* ─── Referred By (renders student object) ─── */}
+              <InfoField label="Referred By">
+                {student.referredBy ? (
+                  <span className="flex items-center gap-2">
+                    <UserCheck className="h-3.5 w-3.5 text-accent" />
+                    <span className="flex flex-col">
+                      <span className="text-foreground">
+                        {student.referredBy.firstName}{' '}
+                        {student.referredBy.lastName}
+                      </span>
+                      <span className="text-xxs text-muted-foreground font-mono">
+                        {student.referredBy.studentId}
+                      </span>
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </InfoField>
             </CardContent>
           </Card>
 
-          <Card className="border-accent/30 bg-accent-light">
+          {/* Quick Actions */}
+          <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Need to update other info?</CardTitle>
+              <CardTitle className="text-base">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <QuickLink
+                href="/my/documents"
+                icon={FileText}
+                label="My Documents"
+              />
+              <QuickLink
+                href="/my/fees"
+                icon={Wallet}
+                label="Fees & Payments"
+              />
+              <QuickLink
+                href="/my/journey"
+                icon={TrendingUp}
+                label="My Journey"
+              />
+              <QuickLink
+                href="/my/classes"
+                icon={UserCheck}
+                label="My Classes"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Info Card */}
+          <Card className="border-accent/30 bg-accent-light">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-accent-foreground" />
+                Need to update other info?
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-foreground">
-                For changes to your name, date of birth, or other official details,
+              <p className="text-xs text-foreground leading-relaxed">
+                For changes to your <strong>name</strong>,{' '}
+                <strong>date of birth</strong>, or other official details,
                 please contact your assigned counselor. You can only edit your
                 contact information here.
               </p>
             </CardContent>
           </Card>
+
+          {/* Push Settings */}
+          <PushSettingsCard />
         </div>
       </div>
 
@@ -199,7 +363,10 @@ export default function MyProfilePage() {
     </div>
   );
 }
-<PushSettingsCard />
+
+// ═══════════════════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════
 
 function InfoField({
   label,
@@ -215,5 +382,28 @@ function InfoField({
       </div>
       <div className="text-foreground">{children}</div>
     </div>
+  );
+}
+
+function QuickLink({
+  href,
+  icon: Icon,
+  label,
+}: {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2.5 text-sm transition-all hover:border-accent/50 hover:bg-accent-light group"
+    >
+      <span className="flex items-center gap-2 text-foreground">
+        <Icon className="h-4 w-4 text-muted-foreground group-hover:text-accent-foreground" />
+        <span className="font-medium">{label}</span>
+      </span>
+      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-accent-foreground group-hover:translate-x-0.5 transition-all" />
+    </Link>
   );
 }

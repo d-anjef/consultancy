@@ -18,6 +18,7 @@ import {
   Upload,
   Download,
   Wallet,
+  UserCheck,
 } from 'lucide-react';
 import { useStudent } from '@/hooks/useStudents';
 import { useApplications } from '@/hooks/useApplications';
@@ -179,7 +180,9 @@ export default function StudentDetailPage() {
                 {format(new Date(student.personal.dateOfBirth), 'PPP')}
               </InfoField>
               <InfoField label="Gender">{student.personal.gender}</InfoField>
-              <InfoField label="Nationality">{student.personal.nationality}</InfoField>
+              <InfoField label="Nationality">
+                {student.personal.nationality}
+              </InfoField>
               <InfoField label="Marital Status">
                 {student.personal.maritalStatus || '—'}
               </InfoField>
@@ -212,7 +215,8 @@ export default function StudentDetailPage() {
               </div>
               <InfoField label="Address">
                 {student.contact.address.street}, {student.contact.address.city},{' '}
-                {student.contact.address.district}, {student.contact.address.province}
+                {student.contact.address.district},{' '}
+                {student.contact.address.province}
               </InfoField>
             </CardContent>
           </Card>
@@ -230,7 +234,9 @@ export default function StudentDetailPage() {
               <InfoField label="Relationship">
                 {student.emergencyContact.relationship}
               </InfoField>
-              <InfoField label="Phone">{student.emergencyContact.phone}</InfoField>
+              <InfoField label="Phone">
+                {student.emergencyContact.phone}
+              </InfoField>
             </CardContent>
           </Card>
 
@@ -436,7 +442,12 @@ export default function StudentDetailPage() {
               <CardTitle className="text-base">Account</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <InfoField label="Branch">{student.branch.name}</InfoField>
+              <InfoField label="Branch">
+                <span className="flex items-center gap-1">
+                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  {student.branch.name}
+                </span>
+              </InfoField>
               <InfoField label="Login Email">{student.userEmail}</InfoField>
               <InfoField label="Account Status">{student.userStatus}</InfoField>
               <InfoField label="Admission Date">
@@ -444,14 +455,45 @@ export default function StudentDetailPage() {
               </InfoField>
               {student.assignedCounselor && (
                 <InfoField label="Counselor">
-                  {student.assignedCounselor.firstName}{' '}
-                  {student.assignedCounselor.lastName}
+                  <span className="flex items-center gap-1">
+                    <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                    {student.assignedCounselor.firstName}{' '}
+                    {student.assignedCounselor.lastName}
+                  </span>
                 </InfoField>
               )}
+
+              {/* ─── NEW: Referred By ─── */}
+              <InfoField label="Referred By">
+                {student.referredBy ? (
+                  <button
+                    onClick={() =>
+                      router.push(`/students/${student.referredBy!.id}`)
+                    }
+                    className="flex items-center gap-2 text-left group"
+                  >
+                    <UserCheck className="h-3.5 w-3.5 text-accent" />
+                    <span className="flex flex-col">
+                      <span className="text-foreground group-hover:text-accent-foreground group-hover:underline">
+                        {student.referredBy.firstName}{' '}
+                        {student.referredBy.lastName}
+                      </span>
+                      <span className="text-xxs text-muted-foreground font-mono">
+                        {student.referredBy.studentId}
+                      </span>
+                    </span>
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </InfoField>
+
               {student.originLead && (
                 <InfoField label="Converted From">
                   <button
-                    onClick={() => router.push(`/leads/${student.originLead!.id}`)}
+                    onClick={() =>
+                      router.push(`/leads/${student.originLead!.id}`)
+                    }
                     className="text-accent hover:underline"
                   >
                     {student.originLead.leadNumber}

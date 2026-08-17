@@ -1,11 +1,13 @@
 'use client';
 
-import { Bell, Search, Menu } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Bell, Search, Menu, X, Command } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { UserMenu } from '@/components/shared/UserMenu/UserMenu';
 import { useUnreadCount } from '@/hooks/useNotifications';
 import { useMobileSidebar } from '@/components/shared/Sidebar/MobileSidebarContext';
+import { GlobalSearchDialog } from './GlobalSearchDialog';
 
 export function TopNav() {
   const router = useRouter();
@@ -13,62 +15,78 @@ export function TopNav() {
   const unreadCount = data?.count ?? 0;
   const { toggle } = useMobileSidebar();
 
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Keyboard shortcut: Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background px-3 md:gap-4 md:px-6">
-      {/* Hamburger — mobile only */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden shrink-0"
-        onClick={toggle}
-        aria-label="Toggle menu"
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
-
-      {/* Search — hidden on very small screens, visible from sm up */}
-      <div className="relative flex-1 max-w-xl hidden sm:block">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search students, applications, documents…"
-          className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors"
-        />
-      </div>
-
-      {/* Spacer on mobile to push actions right */}
-      <div className="flex-1 sm:hidden" />
-
-      <div className="flex items-center gap-1 shrink-0">
-        {/* Search icon — mobile only */}
+    <>
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background px-3 md:px-6">
+        {/* Hamburger — mobile only */}
         <Button
           variant="ghost"
           size="icon"
-          className="sm:hidden"
-          aria-label="Search"
+          className="lg:hidden shrink-0"
+          onClick={toggle}
+          aria-label="Toggle menu"
         >
-          <Search className="h-4 w-4" />
+          <Menu className="h-5 w-5" />
         </Button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          onClick={() => router.push('/notifications')}
-          aria-label="Notifications"
+        {/* ─── Search bar (clickable, opens dialog) ─── */}
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="group relative flex h-9 w-full max-w-md items-center gap-2 rounded-full border border-border bg-secondary/50 px-4 text-sm text-muted-foreground transition-all hover:bg-secondary hover:border-border/80 md:w-96"
         >
-          <Bell className="h-4 w-4" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-xxs font-semibold text-accent-foreground">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </Button>
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-left truncate">
+            Search students, leads, applications…
+          </span>
+          <kbd className="hidden md:flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-xxs font-medium text-muted-foreground">
+            <Command className="h-3 w-3" />K
+          </kbd>
+        </button>
 
-        <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
+        {/* ─── Spacer ─── */}
+        <div className="flex-1" />
 
-        <UserMenu />
-      </div>
-    </header>
+        {/* ─── Right side actions ─── */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Notifications */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative rounded-full"
+            onClick={() => router.push('/notifications')}
+            aria-label="Notifications"
+          >
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-xxs font-semibold text-accent-foreground ring-2 ring-background">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Button>
+
+          <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
+
+          <UserMenu />
+        </div>
+      </header>
+
+      {/* Global Search Dialog */}
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+    </>
   );
 }
