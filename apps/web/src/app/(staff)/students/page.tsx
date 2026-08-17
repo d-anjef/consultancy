@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus , Upload } from 'lucide-react';
 import { useStudents, useStudentStats } from '@/hooks/useStudents';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PERMISSION_CODES } from '@consultancy/config';
@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { StudentTable } from '@/components/students/StudentTable';
 import { StudentFilters, type StudentFilterValues } from '@/components/students/StudentFilters';
 import { CreateStudentDialog } from '@/components/students/CreateStudentDialog';
+import { BulkImportDialog } from '@/components/students/BulkImportDialog';
 
 export default function StudentsPage() {
   const { has } = usePermissions();
@@ -19,6 +20,7 @@ export default function StudentsPage() {
   });
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data, isLoading } = useStudents({
     page,
@@ -41,12 +43,18 @@ export default function StudentsPage() {
           </p>
         </div>
         {canCreate && (
-          <Button variant="accent" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New Student
-          </Button>
-        )}
-      </div>
+  <div className="flex gap-2">
+    <Button variant="outline" onClick={() => setImportOpen(true)}>
+      <Upload className="h-4 w-4" />
+      Bulk Import
+    </Button>
+    <Button variant="accent" onClick={() => setCreateOpen(true)}>
+      <Plus className="h-4 w-4" />
+      New Student
+    </Button>
+  </div>
+)}
+</div>
 
       {stats && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -111,6 +119,7 @@ export default function StudentsPage() {
       )}
 
       <CreateStudentDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <BulkImportDialog open={importOpen} onOpenChange={setImportOpen} /> 
     </div>
   );
 }

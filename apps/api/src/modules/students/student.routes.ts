@@ -12,9 +12,29 @@ import {
   listStudentsQuerySchema,
 } from './student.validators.js';
 import { studentController } from './student.controller.js';
+import multer from 'multer';
 
 const router: Router = Router();
 const idParamSchema = z.object({ id: objectIdSchema });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB
+  },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'text/csv', // .csv
+      'application/csv',
+    ];
+    if (allowed.includes(file.mimetype) || file.originalname.match(/\.(xlsx|xls|csv)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel (.xlsx, .xls) and CSV files are allowed'));
+    }
+  },
+});
 
 // Student self routes
 router.get(
@@ -79,6 +99,25 @@ router.post(
   validateParams(idParamSchema),
   validateBody(transferStudentBranchSchema),
   (req, res, next) => studentController.transfer(req, res, next),
+);
+// ─── Bulk Import ────────────────────────────────────────────────────
+router.get(
+  '/import/template',
+  authorize(PERMISSION_CODES.CREATE_STUDENT),
+  (req, res, next) => studentController.downloadTemplate(req, res, next),
+);
+
+router.post(
+  '/import/bulk',
+  authorize(PERMISSION_CODES.CREATE_STUDENT),
+  upload.single('file'),
+  (req, res, next) => studentController.bulkImport(req, res, next),
+);
+
+router.post(
+  '/import/error-report',
+  authorize(PERMISSION_CODES.CREATE_STUDENT),
+  (req, res, next) => studentController.downloadErrorReport(req, res, next),
 );
 
 export { router as studentRoutes };
