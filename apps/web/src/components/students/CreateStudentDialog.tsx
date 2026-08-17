@@ -100,9 +100,8 @@ const createStudentSchema = z.object({
   emergencyPhone: z
     .string()
     .regex(/^(\+977)?[0-9]{7,10}$/, 'Invalid phone number'),
-  referredByStudentId: z.string().optional().or(z.literal('')),
-  referredByName: z.string().trim().max(200).optional().or(z.literal('')),
-  notes: z.string().trim().max(2000).optional().or(z.literal('')),
+    referredByStudentId: z.string().optional().or(z.literal('')),
+  notes: z.string().trim().max(2000).optional().or(z.literal(''))
 });
 
 type CreateStudentFormValues = z.infer<typeof createStudentSchema>;
@@ -154,7 +153,6 @@ export function CreateStudentDialog({
       emergencyRelationship: '',
       emergencyPhone: '',
       referredByStudentId: '',
-      referredByName: '',
       notes: '',
     },
   });
@@ -182,7 +180,6 @@ export function CreateStudentDialog({
         emergencyRelationship: '',
         emergencyPhone: '',
         referredByStudentId: '',
-        referredByName: '',
         notes: fromLead.notes ?? '',
       });
     }
@@ -219,7 +216,6 @@ export function CreateStudentDialog({
         phone: values.emergencyPhone,
       },
       referredBy: values.referredByStudentId || undefined,
-referralRelationship: values.referredByName || undefined,
       notes: values.notes || undefined,
       sendInvitation: true,
     } );
@@ -560,44 +556,28 @@ referralRelationship: values.referredByName || undefined,
             </div>
 
             {/* Referral */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-foreground">
-                Referral (Optional)
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="referredByStudentId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Referred by Student</FormLabel>
-                      <ReferrerStudentSelect
-                        value={field.value ?? ''}
-                        onChange={field.onChange}
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="referredByName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Or Referrer Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="External referrer name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Select an existing student who referred, or type a name if not in
-                the system.
-              </p>
-            </div>
+<div className="space-y-3">
+  <h4 className="text-sm font-semibold text-foreground">
+    Referral (Optional)
+  </h4>
+  <FormField
+    control={form.control}
+    name="referredByStudentId"
+    render={({ field }) => (
+      <FormItem>
+        <FormLabel>Referred by Student</FormLabel>
+        <ReferrerStudentSelect
+          value={field.value ?? ''}
+          onChange={field.onChange}
+        />
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+  <p className="text-xs text-muted-foreground">
+    Select an existing student who referred this new student (if any).
+  </p>
+</div>
 
             {/* Notes */}
             <FormField

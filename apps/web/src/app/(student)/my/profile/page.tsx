@@ -271,7 +271,7 @@ export default function MyProfilePage() {
               <InfoField label="Admission Date">
                 {format(new Date(student.admissionDate), 'PPP')}
               </InfoField>
-              {student.assignedCounselor && (
+                            {student.assignedCounselor && (
                 <InfoField label="Counselor">
                   <span className="flex items-center gap-1">
                     <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
@@ -281,25 +281,20 @@ export default function MyProfilePage() {
                 </InfoField>
               )}
 
-              {/* ─── Referred By (renders student object) ─── */}
-              <InfoField label="Referred By">
-                {student.referredBy ? (
-                  <span className="flex items-center gap-2">
-                    <UserCheck className="h-3.5 w-3.5 text-accent" />
-                    <span className="flex flex-col">
-                      <span className="text-foreground">
-                        {student.referredBy.firstName}{' '}
-                        {student.referredBy.lastName}
-                      </span>
-                      <span className="text-xxs text-muted-foreground font-mono">
-                        {student.referredBy.studentId}
-                      </span>
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </InfoField>
+              {/* ─── Referred By ─── */}
+              {student.referredBy && (
+                <InfoField label="Referred By">
+                  <div>
+                    <div className="text-foreground">
+                      {student.referredBy.firstName}{' '}
+                      {student.referredBy.lastName}
+                    </div>
+                    <div className="text-xxs text-muted-foreground font-mono">
+                      {student.referredBy.studentId}
+                    </div>
+                  </div>
+                </InfoField>
+              )}
             </CardContent>
           </Card>
 

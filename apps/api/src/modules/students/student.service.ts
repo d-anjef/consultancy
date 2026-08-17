@@ -65,6 +65,17 @@ export interface FormattedStudent {
   status: StudentStatus;
   admissionDate: Date;
   notes?: string;
+
+  // ─── NEW ───
+  referredBy?: {
+    id: string;
+    studentId: string;
+    firstName: string;
+    lastName: string;
+    status: string;
+  } | null;
+  referralRelationship?: string;
+
   createdBy: { id: string; email: string; firstName: string; lastName: string };
   createdAt: Date;
   updatedAt: Date;
@@ -200,6 +211,15 @@ export class StudentService {
 
     // Generate student ID
     const studentIdValue = await generateStudentId();
+    // ─── Validate referrer if provided ───
+    let referredBy: Types.ObjectId | undefined;
+    if (data.referredBy) {
+      const referrer = await studentRepository.findById(data.referredBy);
+      if (!referrer) {
+        throw new NotFoundError('Referring student', data.referredBy);
+      }
+      referredBy = referrer._id as Types.ObjectId;
+    }
 
     // Create student profile
     const student = await studentRepository.create({
@@ -224,6 +244,10 @@ export class StudentService {
       education: data.education,
       notes: data.notes,
       createdBy: new Types.ObjectId(actor.id),
+
+      // ─── NEW ───
+      referredBy,
+      referralRelationship: data.referralRelationship,
     });
 
     // Mark lead as converted
@@ -424,6 +448,17 @@ export class StudentService {
     | undefined;
   const creator = s.createdBy as unknown as UserDocument | null;
 
+  // ─── NEW: Referrer ───
+  const referrer = s.referredBy as unknown as
+    | {
+        _id: Types.ObjectId;
+        studentId: string;
+        personal?: { firstName?: string; lastName?: string };
+        status?: string;
+      }
+    | null
+    | undefined;
+
   return {
     id: String(s._id),
     studentId: s.studentId,
@@ -463,6 +498,19 @@ export class StudentService {
     status: s.status,
     admissionDate: s.admissionDate,
     notes: s.notes,
+
+    // ─── NEW ───
+    referredBy: referrer?._id
+      ? {
+          id: String(referrer._id),
+          studentId: referrer.studentId,
+          firstName: referrer.personal?.firstName ?? '',
+          lastName: referrer.personal?.lastName ?? '',
+          status: referrer.status ?? 'UNKNOWN',
+        }
+      : null,
+    referralRelationship: s.referralRelationship,
+
     createdBy: creator?._id
       ? {
           id: String(creator._id),

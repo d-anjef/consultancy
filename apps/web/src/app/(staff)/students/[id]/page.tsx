@@ -453,40 +453,32 @@ export default function StudentDetailPage() {
               <InfoField label="Admission Date">
                 {format(new Date(student.admissionDate), 'PPP')}
               </InfoField>
-              {student.assignedCounselor && (
+                            {student.assignedCounselor && (
                 <InfoField label="Counselor">
-                  <span className="flex items-center gap-1">
-                    <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                    {student.assignedCounselor.firstName}{' '}
-                    {student.assignedCounselor.lastName}
-                  </span>
+                  {student.assignedCounselor.firstName}{' '}
+                  {student.assignedCounselor.lastName}
                 </InfoField>
               )}
 
-              {/* ─── NEW: Referred By ─── */}
-              <InfoField label="Referred By">
-                {student.referredBy ? (
+              {/* ─── Referred By ─── */}
+              {student.referredBy && (
+                <InfoField label="Referred By">
                   <button
                     onClick={() =>
                       router.push(`/students/${student.referredBy!.id}`)
                     }
-                    className="flex items-center gap-2 text-left group"
+                    className="text-left group"
                   >
-                    <UserCheck className="h-3.5 w-3.5 text-accent" />
-                    <span className="flex flex-col">
-                      <span className="text-foreground group-hover:text-accent-foreground group-hover:underline">
-                        {student.referredBy.firstName}{' '}
-                        {student.referredBy.lastName}
-                      </span>
-                      <span className="text-xxs text-muted-foreground font-mono">
-                        {student.referredBy.studentId}
-                      </span>
-                    </span>
+                    <div className="text-foreground group-hover:text-accent-foreground group-hover:underline">
+                      {student.referredBy.firstName}{' '}
+                      {student.referredBy.lastName}
+                    </div>
+                    <div className="text-xxs text-muted-foreground font-mono group-hover:text-accent-foreground">
+                      {student.referredBy.studentId}
+                    </div>
                   </button>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </InfoField>
+                </InfoField>
+              )}
 
               {student.originLead && (
                 <InfoField label="Converted From">

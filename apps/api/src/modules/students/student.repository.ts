@@ -17,6 +17,8 @@ export interface CreateStudentData {
   education?: StudentDocument['education'];
   notes?: string;
   createdBy: Types.ObjectId;
+  referredBy?: Types.ObjectId;              
+  referralRelationship?: string;             
 }
 
 export interface UpdateStudentData {
@@ -30,6 +32,8 @@ export interface UpdateStudentData {
   status?: StudentStatus;
   notes?: string;
   updatedBy: Types.ObjectId;
+  referredBy?: Types.ObjectId | null;        
+  referralRelationship?: string;              
 }
 
 export interface ListStudentsFilter {
@@ -147,10 +151,12 @@ export class StudentRepository {
         if (v !== undefined) updateOps[`education.${k}`] = v;
       }
     }
-    if (data.assignedCounselor !== undefined) updateOps.assignedCounselor = data.assignedCounselor;
+        if (data.assignedCounselor !== undefined) updateOps.assignedCounselor = data.assignedCounselor;
     if (data.branch !== undefined) updateOps.branch = data.branch;
     if (data.status !== undefined) updateOps.status = data.status;
     if (data.notes !== undefined) updateOps.notes = data.notes;
+    if (data.referredBy !== undefined) updateOps.referredBy = data.referredBy;
+    if (data.referralRelationship !== undefined) updateOps.referralRelationship = data.referralRelationship;
     updateOps.updatedBy = data.updatedBy;
 
     return StudentModel.findByIdAndUpdate(id, { $set: updateOps }, { new: true })
