@@ -22,7 +22,17 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} {siteConfig.organization.name}</span>
           <span>All rights reserved</span>
-        </div>
+          <span>Software made by{' '}
+          <a
+            href="https://www.anjef.com.np/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-foreground hover:text-accent transition-colors"
+          >
+            Anjef
+          </a>
+        </span>
+      </div>
       </footer>
     </main>
   );
