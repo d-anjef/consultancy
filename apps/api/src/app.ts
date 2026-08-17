@@ -98,20 +98,23 @@ export function createApp(): express.Application {
         'http://localhost:3000',
       ];
 
-      // Allow requests with no origin (mobile apps, Postman, etc.)
+      // Allow no-origin (Postman, mobile apps, server-to-server)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      // Normalize: strip trailing slash
+      const normalized = origin.replace(/\/$/, '');
+
+      if (allowedOrigins.includes(normalized)) {
         return callback(null, true);
       }
 
-      // Also check env variable
+      // Check env variable (also normalized)
       const envOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
         .split(',')
-        .map(s => s.trim())
+        .map((s) => s.trim().replace(/\/$/, ''))
         .filter(Boolean);
 
-      if (envOrigins.includes(origin)) {
+      if (envOrigins.includes(normalized)) {
         return callback(null, true);
       }
 
