@@ -22,6 +22,7 @@ import {
   QrCode,
   Stamp,
   Languages,
+  Megaphone
 } from 'lucide-react';
 import { PERMISSION_CODES, type PermissionCode } from '@consultancy/config';
 import {MapPin} from 'lucide-react';
@@ -129,6 +130,12 @@ export const STAFF_NAVIGATION: NavSection[] = [
         icon: ListTodo,
         requiredPermissions: [PERMISSION_CODES.VIEW_TASK],
       },
+      {
+      label: 'Announcements',
+      href: '/announcements',
+      icon: Megaphone,
+      requiredPermissions: [PERMISSION_CODES.SEND_NOTIFICATION],
+    },
       {
         label: 'Notifications',
         href: '/notifications',

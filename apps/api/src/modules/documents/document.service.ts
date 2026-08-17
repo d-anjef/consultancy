@@ -12,6 +12,10 @@ import {
 import { documentRepository } from './document.repository.js';
 import { r2Service } from './r2.service.js';
 import { studentRepository } from '../students/student.repository.js';
+import { userRepository } from '../users/user.repository.js';
+import { notificationService } from '../notifications/notification.service.js';
+import { emailService } from '../auth/email.service.js';
+import { logger } from '../../lib/logger.js';
 import type { DocumentEntity, DocumentVersionDocument } from './document.model.js';
 import type { StudentDocument } from '../students/student.model.js';
 import type { BranchDocument } from '../branches/branch.model.js';
@@ -134,7 +138,6 @@ export class DocumentService {
     },
     actor: ActorContext,
   ): Promise<FormattedDocument> {
-    // Validate file
     if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
       throw new ValidationError(
         `File size exceeds maximum allowed (${MAX_DOCUMENT_SIZE_BYTES / 1024 / 1024}MB)`,
@@ -147,18 +150,16 @@ export class DocumentService {
       );
     }
 
-    // Load student
     const student = await studentRepository.findById(metadata.studentId);
     if (!student) throw new NotFoundError('Student', metadata.studentId);
 
-    // Enforce branch access
-    const studentBranchId = String((student.branch as unknown as BranchDocument)._id);
+    const studentBranch = student.branch as unknown as BranchDocument | null;
+    const studentBranchId = studentBranch?._id ? String(studentBranch._id) : null;
     const isOrgWide = ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role);
     if (!isOrgWide && studentBranchId !== actor.branch) {
       throw new ForbiddenError("You do not have access to this student's branch");
     }
 
-    // Upload to R2
     const uploadResult = await r2Service.uploadBuffer(
       file.buffer,
       file.originalName,
@@ -176,7 +177,7 @@ export class DocumentService {
         application: metadata.applicationId
           ? new Types.ObjectId(metadata.applicationId)
           : undefined,
-        branch: (student.branch as unknown as BranchDocument)._id as Types.ObjectId,
+        branch: studentBranch!._id as Types.ObjectId,
         documentType: metadata.documentType,
         documentName: metadata.documentName,
         description: metadata.description,
@@ -198,6 +199,11 @@ export class DocumentService {
         },
         uploadedBy: new Types.ObjectId(actor.id),
       },
+    );
+
+    // ═══ NOTIFY STAFF (assigned counselor if any) ═══
+    this.notifyDocumentNeedsVerification(created, student).catch((err) =>
+      logger.warn({ err, docId: created._id }, 'Document upload notification failed (non-blocking)'),
     );
 
     return this.format(created);
@@ -267,15 +273,20 @@ export class DocumentService {
   }
 
   async verifyDocument(id: string, actor: ActorContext): Promise<FormattedDocument> {
-    // Branch Manager verifies
-    return this.transitionStatus(id, DOCUMENT_STATUSES.VERIFIED, actor, {
+    const result = await this.transitionStatus(id, DOCUMENT_STATUSES.VERIFIED, actor, {
       verifiedBy: new Types.ObjectId(actor.id),
       verifiedAt: new Date(),
     });
+
+    // In-app notification only (no email — too noisy for positive)
+    this.notifyDocumentVerified(id).catch((err) =>
+      logger.warn({ err, docId: id }, 'Document verified notification failed'),
+    );
+
+    return result;
   }
 
   async approveDocument(id: string, actor: ActorContext): Promise<FormattedDocument> {
-    // Only Admin/Super Admin can final-approve
     if (actor.role !== ROLE_CODES.ADMIN && actor.role !== ROLE_CODES.SUPER_ADMIN) {
       throw new ForbiddenError('Only Admin or Super Admin can approve documents');
     }
@@ -290,11 +301,18 @@ export class DocumentService {
     data: RejectDocumentDto,
     actor: ActorContext,
   ): Promise<FormattedDocument> {
-    return this.transitionStatus(id, DOCUMENT_STATUSES.REJECTED, actor, {
+    const result = await this.transitionStatus(id, DOCUMENT_STATUSES.REJECTED, actor, {
       rejectedBy: new Types.ObjectId(actor.id),
       rejectedAt: new Date(),
       rejectionReason: data.reason,
     });
+
+    // Notify + email student
+    this.notifyDocumentRejected(id, data.reason).catch((err) =>
+      logger.warn({ err, docId: id }, 'Document rejected notification failed'),
+    );
+
+    return result;
   }
 
   async requestResubmission(
@@ -302,7 +320,7 @@ export class DocumentService {
     data: RequestResubmissionDto,
     actor: ActorContext,
   ): Promise<FormattedDocument> {
-    return this.transitionStatus(
+    const result = await this.transitionStatus(
       id,
       DOCUMENT_STATUSES.RESUBMISSION_REQUIRED,
       actor,
@@ -312,6 +330,13 @@ export class DocumentService {
         resubmissionReason: data.reason,
       },
     );
+
+    // Notify + email student (re-use rejected template)
+    this.notifyDocumentRejected(id, data.reason).catch((err) =>
+      logger.warn({ err, docId: id }, 'Document resubmission notification failed'),
+    );
+
+    return result;
   }
 
   async getVersions(id: string, actor: ActorContext) {
@@ -321,7 +346,7 @@ export class DocumentService {
 
     const versions = await documentRepository.getVersions(id);
     return versions.map((v) => {
-      const uploader = v.uploadedBy as unknown as UserDocument;
+      const uploader = v.uploadedBy as unknown as UserDocument | null;
       return {
         id: String(v._id),
         versionNumber: v.versionNumber,
@@ -330,7 +355,7 @@ export class DocumentService {
         uploadedBy: uploader?.email
           ? {
               email: uploader.email,
-              name: `${uploader.profile.firstName} ${uploader.profile.lastName}`,
+              name: `${uploader.profile?.firstName ?? ''} ${uploader.profile?.lastName ?? ''}`.trim(),
             }
           : null,
         uploadedAt: v.uploadedAt,
@@ -369,24 +394,139 @@ export class DocumentService {
 
   private enforceAccess(doc: DocumentEntity, actor: ActorContext): void {
     if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const branchId = String((doc.branch as unknown as BranchDocument)._id);
+    const branch = doc.branch as unknown as BranchDocument | null;
+    const branchId = branch?._id ? String(branch._id) : null;
     if (branchId !== actor.branch) {
       throw new ForbiddenError("You do not have access to this document's branch");
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  // NOTIFICATION HELPERS
+  // ═══════════════════════════════════════════════════
+
+  private async notifyDocumentNeedsVerification(
+    doc: DocumentEntity,
+    student: StudentDocument,
+  ): Promise<void> {
+    // Notify the student's assigned counselor (if any)
+    const counselorId = student.assignedCounselor as unknown as Types.ObjectId | undefined;
+    if (!counselorId) return;
+
+    const counselor = await userRepository.findById(String(counselorId));
+    if (!counselor?.email) return;
+
+    const studentName = `${student.personal?.firstName ?? ''} ${student.personal?.lastName ?? ''}`.trim();
+    const branch = doc.branch as unknown as BranchDocument | null;
+
+    await Promise.all([
+      notificationService.create({
+        recipientId: String(counselorId),
+        recipientRole: 'COUNSELOR',
+        branchId: branch?._id ? String(branch._id) : undefined,
+        event: 'DOCUMENT_NEEDS_VERIFICATION',
+        category: 'DOCUMENTS',
+        title: 'Document Uploaded',
+        message: `${studentName} uploaded ${doc.documentName} — verification needed`,
+        metadata: {
+          entityType: 'Document',
+          entityId: String(doc._id),
+          deepLink: `/documents`,
+        },
+        priority: 'NORMAL',
+      }),
+      emailService.sendDocumentNeedsVerification({
+        to: counselor.email,
+        recipientName: `${counselor.profile?.firstName ?? 'Counselor'}`,
+        studentName: studentName || 'Student',
+        documentName: doc.documentName,
+        documentNumber: doc.documentNumber,
+      }),
+    ]);
+  }
+
+  private async notifyDocumentVerified(docId: string): Promise<void> {
+    const doc = await documentRepository.findById(docId);
+    if (!doc) return;
+
+    const student = doc.student as unknown as StudentDocument | null;
+    if (!student?.userId) return;
+
+    const branch = doc.branch as unknown as BranchDocument | null;
+
+    await notificationService.create({
+      recipientId: String(student.userId),
+      recipientRole: 'STUDENT',
+      branchId: branch?._id ? String(branch._id) : undefined,
+      event: 'DOCUMENT_VERIFIED',
+      category: 'DOCUMENTS',
+      title: 'Document Verified',
+      message: `Your document "${doc.documentName}" has been verified ✓`,
+      metadata: {
+        entityType: 'Document',
+        entityId: String(doc._id),
+        deepLink: '/my/documents',
+      },
+      priority: 'NORMAL',
+    });
+  }
+
+  private async notifyDocumentRejected(docId: string, reason: string): Promise<void> {
+    const doc = await documentRepository.findById(docId);
+    if (!doc) return;
+
+    const student = doc.student as unknown as StudentDocument | null;
+    if (!student?.userId) return;
+
+    const studentUser = await userRepository.findById(String(student.userId));
+    if (!studentUser?.email) return;
+
+    const studentName = `${student.personal?.firstName ?? ''} ${student.personal?.lastName ?? ''}`.trim();
+    const branch = doc.branch as unknown as BranchDocument | null;
+
+    await Promise.all([
+      notificationService.create({
+        recipientId: String(student.userId),
+        recipientRole: 'STUDENT',
+        branchId: branch?._id ? String(branch._id) : undefined,
+        event: 'DOCUMENT_REJECTED',
+        category: 'DOCUMENTS',
+        title: 'Document Re-submission Required',
+        message: `Your document "${doc.documentName}" needs re-submission. Reason: ${reason}`,
+        metadata: {
+          entityType: 'Document',
+          entityId: String(doc._id),
+          deepLink: '/my/documents',
+        },
+        priority: 'HIGH',
+      }),
+      emailService.sendDocumentRejected({
+        to: studentUser.email,
+        recipientName: studentName || 'Student',
+        documentName: doc.documentName,
+        reason,
+      }),
+    ]);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // FORMAT FUNCTION (null-safe)
+  // ═══════════════════════════════════════════════════
+
   private format(d: DocumentEntity): FormattedDocument {
-    const student = d.student as unknown as StudentDocument;
-    const branch = d.branch as unknown as BranchDocument;
+    const student = d.student as unknown as StudentDocument | null;
+    const branch = d.branch as unknown as BranchDocument | null;
     const application = d.application as unknown as
       | { _id: Types.ObjectId; applicationNumber: string; status: string }
+      | null
       | undefined;
-    const currentVersion = d.currentVersion as unknown as DocumentVersionDocument;
-    const uploader = d.uploadedBy as unknown as UserDocument;
+    const currentVersion = d.currentVersion as unknown as DocumentVersionDocument | null;
+    const uploader = d.uploadedBy as unknown as UserDocument | null;
 
     const formatUserRef = (u: unknown) => {
       if (!u) return null;
       const user = u as UserDocument;
+      if (!user._id) return null;
       return {
         id: String(user._id),
         firstName: user.profile?.firstName ?? '',
@@ -397,41 +537,64 @@ export class DocumentService {
     return {
       id: String(d._id),
       documentNumber: d.documentNumber,
-      student: {
-        id: String(student._id),
-        studentId: student.studentId,
-        firstName: student.personal.firstName,
-        lastName: student.personal.lastName,
-      },
-      application: application
+      student: student?._id
+        ? {
+            id: String(student._id),
+            studentId: student.studentId ?? '',
+            firstName: student.personal?.firstName ?? '',
+            lastName: student.personal?.lastName ?? '',
+          }
+        : {
+            id: '',
+            studentId: 'DELETED',
+            firstName: 'Deleted',
+            lastName: 'Student',
+          },
+      application: application?._id
         ? {
             id: String(application._id),
             applicationNumber: application.applicationNumber,
             status: application.status,
           }
         : null,
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
+      branch: branch?._id
+        ? { id: String(branch._id), code: branch.code, name: branch.name }
+        : { id: '', code: 'N/A', name: 'Unknown Branch' },
       documentType: d.documentType,
       documentName: d.documentName,
       description: d.description,
-      currentVersion: {
-        id: String(currentVersion._id),
-        versionNumber: currentVersion.versionNumber,
-        file: {
-          originalName: currentVersion.file.originalName,
-          mimeType: currentVersion.file.mimeType,
-          sizeBytes: currentVersion.file.sizeBytes,
-        },
-        uploadedAt: currentVersion.uploadedAt,
-      },
+      currentVersion: currentVersion?._id
+        ? {
+            id: String(currentVersion._id),
+            versionNumber: currentVersion.versionNumber,
+            file: {
+              originalName: currentVersion.file.originalName,
+              mimeType: currentVersion.file.mimeType,
+              sizeBytes: currentVersion.file.sizeBytes,
+            },
+            uploadedAt: currentVersion.uploadedAt,
+          }
+        : {
+            id: '',
+            versionNumber: 0,
+            file: { originalName: 'missing', mimeType: 'unknown', sizeBytes: 0 },
+            uploadedAt: new Date(),
+          },
       versionCount: d.versionCount,
       status: d.status,
-      uploadedBy: {
-        id: String(uploader._id),
-        email: uploader.email,
-        firstName: uploader.profile.firstName,
-        lastName: uploader.profile.lastName,
-      },
+      uploadedBy: uploader?._id
+        ? {
+            id: String(uploader._id),
+            email: uploader.email,
+            firstName: uploader.profile?.firstName ?? '',
+            lastName: uploader.profile?.lastName ?? '',
+          }
+        : {
+            id: '',
+            email: 'deleted@user',
+            firstName: 'Deleted',
+            lastName: 'User',
+          },
       uploadedAt: d.uploadedAt,
       reviewedBy: formatUserRef(d.reviewedBy),
       reviewedAt: d.reviewedAt,

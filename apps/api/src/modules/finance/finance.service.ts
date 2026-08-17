@@ -2,6 +2,10 @@ import { Types } from 'mongoose';
 import { ORGANIZATION_WIDE_ROLE_CODES, type RoleCode } from '@consultancy/config';
 import { financeRepository } from './finance.repository.js';
 import { studentRepository } from '../students/student.repository.js';
+import { userRepository } from '../users/user.repository.js';
+import { notificationService } from '../notifications/notification.service.js';
+import { emailService } from '../auth/email.service.js';
+import { logger } from '../../lib/logger.js';
 import type { InvoiceDocument } from './invoice.model.js';
 import type { PaymentDocument } from './payment.model.js';
 import type { StudentDocument } from '../students/student.model.js';
@@ -112,9 +116,13 @@ export class FinanceService {
     if (!student) throw new NotFoundError('Student', data.studentId);
 
     const isOrgWide = ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role);
-    const studentBranchId = String((student.branch as unknown as BranchDocument)._id);
+    const studentBranch = student.branch as unknown as BranchDocument | null;
+    const studentBranchId = studentBranch?._id ? String(studentBranch._id) : null;
     if (!isOrgWide && studentBranchId !== actor.branch) {
       throw new ForbiddenError("You do not have access to this student's branch");
+    }
+    if (!studentBranchId) {
+      throw new BusinessRuleError('Student has no branch assigned');
     }
 
     // Calculate totals
@@ -138,7 +146,7 @@ export class FinanceService {
       invoiceNumber,
       student: student._id as Types.ObjectId,
       application: data.applicationId ? new Types.ObjectId(data.applicationId) : undefined,
-      branch: (student.branch as unknown as BranchDocument)._id as Types.ObjectId,
+      branch: studentBranch!._id as Types.ObjectId,
       lineItems: lineItemsWithTotal,
       subtotal,
       discount: data.discount,
@@ -149,6 +157,11 @@ export class FinanceService {
       notes: data.notes,
       createdBy: new Types.ObjectId(actor.id),
     });
+
+    // ═══ FIRE NOTIFICATIONS & EMAIL ═══
+    this.notifyInvoiceCreated(created, student).catch((err) =>
+      logger.warn({ err, invoiceId: created._id }, 'Invoice notification failed (non-blocking)'),
+    );
 
     return this.formatInvoice(created);
   }
@@ -215,7 +228,8 @@ export class FinanceService {
     if (!invoice) throw new NotFoundError('Invoice', data.invoiceId);
 
     const isOrgWide = ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role);
-    const invoiceBranchId = String((invoice.branch as unknown as BranchDocument)._id);
+    const invoiceBranch = invoice.branch as unknown as BranchDocument | null;
+    const invoiceBranchId = invoiceBranch?._id ? String(invoiceBranch._id) : null;
     if (!isOrgWide && invoiceBranchId !== actor.branch) {
       throw new ForbiddenError("You do not have access to this invoice's branch");
     }
@@ -240,7 +254,7 @@ export class FinanceService {
       receiptNumber,
       invoice: invoice._id as Types.ObjectId,
       student: student._id as Types.ObjectId,
-      branch: (invoice.branch as unknown as BranchDocument)._id as Types.ObjectId,
+      branch: invoiceBranch!._id as Types.ObjectId,
       amount: data.amount,
       method: data.method as never,
       methodDetails: data.methodDetails,
@@ -257,6 +271,11 @@ export class FinanceService {
       newPaidAmount,
       newBalance,
       new Types.ObjectId(actor.id),
+    );
+
+    // ═══ FIRE NOTIFICATIONS & EMAIL (Payment Receipt) ═══
+    this.notifyPaymentReceived(created, invoice, student).catch((err) =>
+      logger.warn({ err, paymentId: created._id }, 'Payment notification failed (non-blocking)'),
     );
 
     return this.formatPayment(created);
@@ -309,9 +328,98 @@ export class FinanceService {
     return financeRepository.getFinanceStats(branchId);
   }
 
+  // ═══════════════════════════════════════════════════
+  // NOTIFICATION HELPERS (fire-and-forget)
+  // ═══════════════════════════════════════════════════
+
+  private async notifyInvoiceCreated(
+    invoice: InvoiceDocument,
+    student: StudentDocument,
+  ): Promise<void> {
+    // Fetch the student's user (for email)
+    const studentUser = await userRepository.findById(String(student.userId));
+    if (!studentUser?.email) return;
+
+    const studentName = `${student.personal?.firstName ?? ''} ${student.personal?.lastName ?? ''}`.trim();
+    const branch = invoice.branch as unknown as BranchDocument | null;
+
+    await Promise.all([
+      // In-app notification
+      notificationService.create({
+        recipientId: String(student.userId),
+        recipientRole: 'STUDENT',
+        branchId: branch?._id ? String(branch._id) : undefined,
+        event: 'INVOICE_CREATED',
+        category: 'FINANCE',
+        title: 'New Invoice',
+        message: `Invoice ${invoice.invoiceNumber} for ${invoice.currency} ${invoice.totalAmount.toLocaleString()} — due ${invoice.dueDate.toLocaleDateString()}`,
+        metadata: {
+          entityType: 'Invoice',
+          entityId: String(invoice._id),
+          deepLink: '/my/fees',
+        },
+        priority: 'HIGH',
+      }),
+      // Email
+      emailService.sendInvoiceCreated({
+        to: studentUser.email,
+        recipientName: studentName || 'Student',
+        invoiceNumber: invoice.invoiceNumber,
+        amount: invoice.totalAmount,
+        currency: invoice.currency,
+        dueDate: invoice.dueDate,
+      }),
+    ]);
+  }
+
+  private async notifyPaymentReceived(
+    payment: PaymentDocument,
+    invoice: InvoiceDocument,
+    student: StudentDocument,
+  ): Promise<void> {
+    const studentUser = await userRepository.findById(String(student.userId));
+    if (!studentUser?.email) return;
+
+    const studentName = `${student.personal?.firstName ?? ''} ${student.personal?.lastName ?? ''}`.trim();
+    const branch = payment.branch as unknown as BranchDocument | null;
+
+    await Promise.all([
+      notificationService.create({
+        recipientId: String(student.userId),
+        recipientRole: 'STUDENT',
+        branchId: branch?._id ? String(branch._id) : undefined,
+        event: 'PAYMENT_RECEIVED',
+        category: 'FINANCE',
+        title: 'Payment Received',
+        message: `Payment of ${payment.currency} ${payment.amount.toLocaleString()} received. Receipt: ${payment.receiptNumber}`,
+        metadata: {
+          entityType: 'Payment',
+          entityId: String(payment._id),
+          deepLink: '/my/fees',
+        },
+        priority: 'NORMAL',
+      }),
+      emailService.sendPaymentReceipt({
+        to: studentUser.email,
+        recipientName: studentName || 'Student',
+        receiptNumber: payment.receiptNumber,
+        invoiceNumber: invoice.invoiceNumber,
+        amount: payment.amount,
+        currency: payment.currency,
+        paidAt: payment.paidAt,
+        method: payment.method,
+      }),
+    ]);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ACCESS ENFORCEMENT (null-safe)
+  // ═══════════════════════════════════════════════════
+
   private enforceInvoiceAccess(inv: InvoiceDocument, actor: ActorContext): void {
     if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const branchId = String((inv.branch as unknown as BranchDocument)._id);
+    const branch = inv.branch as unknown as BranchDocument | null;
+    const branchId = branch?._id ? String(branch._id) : null;
     if (branchId !== actor.branch) {
       throw new ForbiddenError("You do not have access to this invoice's branch");
     }
@@ -319,32 +427,47 @@ export class FinanceService {
 
   private enforcePaymentAccess(p: PaymentDocument, actor: ActorContext): void {
     if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-    const branchId = String((p.branch as unknown as BranchDocument)._id);
+    const branch = p.branch as unknown as BranchDocument | null;
+    const branchId = branch?._id ? String(branch._id) : null;
     if (branchId !== actor.branch) {
       throw new ForbiddenError("You do not have access to this payment's branch");
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  // FORMAT FUNCTIONS (null-safe)
+  // ═══════════════════════════════════════════════════
+
   private formatInvoice(inv: InvoiceDocument): FormattedInvoice {
-    const student = inv.student as unknown as StudentDocument;
-    const branch = inv.branch as unknown as BranchDocument;
+    const student = inv.student as unknown as StudentDocument | null;
+    const branch = inv.branch as unknown as BranchDocument | null;
     const application = inv.application as unknown as
       | { _id: Types.ObjectId; applicationNumber: string }
+      | null
       | undefined;
 
     return {
       id: String(inv._id),
       invoiceNumber: inv.invoiceNumber,
-      student: {
-        id: String(student._id),
-        studentId: student.studentId,
-        firstName: student.personal.firstName,
-        lastName: student.personal.lastName,
-      },
-      application: application
+      student: student?._id
+        ? {
+            id: String(student._id),
+            studentId: student.studentId ?? '',
+            firstName: student.personal?.firstName ?? '',
+            lastName: student.personal?.lastName ?? '',
+          }
+        : {
+            id: '',
+            studentId: 'DELETED',
+            firstName: 'Deleted',
+            lastName: 'Student',
+          },
+      application: application?._id
         ? { id: String(application._id), applicationNumber: application.applicationNumber }
         : null,
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
+      branch: branch?._id
+        ? { id: String(branch._id), code: branch.code, name: branch.name }
+        : { id: '', code: 'N/A', name: 'Unknown Branch' },
       currency: inv.currency,
       lineItems: inv.lineItems,
       subtotal: inv.subtotal,
@@ -364,40 +487,63 @@ export class FinanceService {
   }
 
   private formatPayment(p: PaymentDocument): FormattedPayment {
-    const student = p.student as unknown as StudentDocument;
-    const invoice = p.invoice as unknown as InvoiceDocument;
-    const branch = p.branch as unknown as BranchDocument;
-    const recorder = p.recordedBy as unknown as UserDocument;
+    const student = p.student as unknown as StudentDocument | null;
+    const invoice = p.invoice as unknown as InvoiceDocument | null;
+    const branch = p.branch as unknown as BranchDocument | null;
+    const recorder = p.recordedBy as unknown as UserDocument | null;
 
     return {
       id: String(p._id),
       paymentNumber: p.paymentNumber,
       receiptNumber: p.receiptNumber,
-      invoice: {
-        id: String(invoice._id),
-        invoiceNumber: invoice.invoiceNumber,
-        totalAmount: invoice.totalAmount,
-        balanceAmount: invoice.balanceAmount,
-      },
-      student: {
-        id: String(student._id),
-        studentId: student.studentId,
-        firstName: student.personal.firstName,
-        lastName: student.personal.lastName,
-      },
-      branch: { id: String(branch._id), code: branch.code, name: branch.name },
+      invoice: invoice?._id
+        ? {
+            id: String(invoice._id),
+            invoiceNumber: invoice.invoiceNumber,
+            totalAmount: invoice.totalAmount,
+            balanceAmount: invoice.balanceAmount,
+          }
+        : {
+            id: '',
+            invoiceNumber: 'DELETED',
+            totalAmount: 0,
+            balanceAmount: 0,
+          },
+      student: student?._id
+        ? {
+            id: String(student._id),
+            studentId: student.studentId ?? '',
+            firstName: student.personal?.firstName ?? '',
+            lastName: student.personal?.lastName ?? '',
+          }
+        : {
+            id: '',
+            studentId: 'DELETED',
+            firstName: 'Deleted',
+            lastName: 'Student',
+          },
+      branch: branch?._id
+        ? { id: String(branch._id), code: branch.code, name: branch.name }
+        : { id: '', code: 'N/A', name: 'Unknown Branch' },
       amount: p.amount,
       currency: p.currency,
       method: p.method,
       methodDetails: p.methodDetails,
       status: p.status,
       paidAt: p.paidAt,
-      recordedBy: {
-        id: String(recorder._id),
-        email: recorder.email,
-        firstName: recorder.profile.firstName,
-        lastName: recorder.profile.lastName,
-      },
+      recordedBy: recorder?._id
+        ? {
+            id: String(recorder._id),
+            email: recorder.email,
+            firstName: recorder.profile?.firstName ?? '',
+            lastName: recorder.profile?.lastName ?? '',
+          }
+        : {
+            id: '',
+            email: 'deleted@user',
+            firstName: 'Deleted',
+            lastName: 'User',
+          },
       voidedAt: p.voidedAt,
       voidReason: p.voidReason,
       notes: p.notes,

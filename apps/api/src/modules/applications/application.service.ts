@@ -9,6 +9,9 @@ import {
 import { applicationRepository } from './application.repository.js';
 import { studentRepository } from '../students/student.repository.js';
 import { userRepository } from '../users/user.repository.js';
+import { notificationService } from '../notifications/notification.service.js';
+import { emailService } from '../auth/email.service.js';
+import { logger } from '../../lib/logger.js';
 import { StudentModel } from '../students/student.model.js';
 import { ProgramModel } from '../programs/program.model.js';
 import { VisaCategoryModel } from '../visa-categories/visa-category.model.js';
@@ -214,10 +217,10 @@ export class ApplicationService {
   }
 
   async changeStatus(
-    id: string,
-    data: ChangeApplicationStatusDto,
-    actor: ActorContext,
-  ): Promise<FormattedApplication> {
+  id: string,
+  data: ChangeApplicationStatusDto,
+  actor: ActorContext,
+): Promise<FormattedApplication> { {
     const existing = await applicationRepository.findById(id);
     if (!existing) throw new NotFoundError('Application', id);
     this.enforceBranchAccess(existing, actor);
@@ -256,22 +259,27 @@ export class ApplicationService {
 
     if (!updated) throw new NotFoundError('Application', id);
 
-    await applicationRepository.recordStatusChange(
-      updated._id as Types.ObjectId,
-      currentStatus,
-      newStatus,
-      new Types.ObjectId(actor.id),
-      data.reason,
-    );
+  await applicationRepository.recordStatusChange(
+    updated._id as Types.ObjectId,
+    currentStatus,
+    newStatus,
+    new Types.ObjectId(actor.id),
+    data.reason,
+  );
 
-    if (!updated.isActive) {
-      await StudentModel.findByIdAndUpdate(updated.student, {
-        $unset: { currentApplication: '' },
-      });
-    }
-
-    return this.format(updated);
+  if (!updated.isActive) {
+    await StudentModel.findByIdAndUpdate(updated.student, {
+      $unset: { currentApplication: '' },
+    });
   }
+
+  this.notifyStatusChanged(updated, currentStatus, newStatus, data.reason).catch((err) =>
+    logger.warn({ err, appId: updated._id }, 'Application status notification failed (non-blocking)'),
+  );
+
+  return this.format(updated);
+}
+}
 
   async cancel(
     id: string,
@@ -352,6 +360,86 @@ export class ApplicationService {
       throw new ForbiddenError("You do not have access to this application's branch");
     }
   }
+
+  // ═══════════════════════════════════════════════════
+// NOTIFICATION HELPER
+// ═══════════════════════════════════════════════════
+
+private async notifyStatusChanged(
+  app: ApplicationDocument,
+  oldStatus: string,
+  newStatus: string,
+  reason?: string,
+): Promise<void> {
+  const student = app.student as unknown as {
+    _id: Types.ObjectId;
+    userId?: Types.ObjectId;
+    personal?: { firstName?: string; lastName?: string };
+  } | null;
+
+  if (!student?.userId) return;
+
+  const studentUser = await userRepository.findById(String(student.userId));
+  if (!studentUser?.email) return;
+
+  const studentName = `${student.personal?.firstName ?? ''} ${student.personal?.lastName ?? ''}`.trim();
+  const branch = app.branch as unknown as BranchDocument | null;
+
+  // Choose message + email based on status
+  let notifTitle = 'Application Updated';
+  let notifMessage = `Your application ${app.applicationNumber} status changed to ${newStatus}`;
+  let priority: 'NORMAL' | 'HIGH' = 'NORMAL';
+  let emailPromise: Promise<void> = Promise.resolve();
+
+  if (newStatus === APPLICATION_STATUSES.APPROVED) {
+    notifTitle = '🎉 Application Approved!';
+    notifMessage = `Congratulations! Your application ${app.applicationNumber} has been approved.`;
+    priority = 'HIGH';
+    emailPromise = emailService.sendApplicationApproved({
+      to: studentUser.email,
+      recipientName: studentName || 'Student',
+      applicationNumber: app.applicationNumber,
+    });
+  } else if (newStatus === APPLICATION_STATUSES.REJECTED) {
+    notifTitle = 'Application Update';
+    notifMessage = `Your application ${app.applicationNumber} was not approved.`;
+    priority = 'HIGH';
+    emailPromise = emailService.sendApplicationRejected({
+      to: studentUser.email,
+      recipientName: studentName || 'Student',
+      applicationNumber: app.applicationNumber,
+      reason,
+    });
+  } else {
+    // Generic status change email
+    emailPromise = emailService.sendApplicationStatusChanged({
+      to: studentUser.email,
+      recipientName: studentName || 'Student',
+      applicationNumber: app.applicationNumber,
+      oldStatus,
+      newStatus,
+    });
+  }
+
+  await Promise.all([
+    notificationService.create({
+      recipientId: String(student.userId),
+      recipientRole: 'STUDENT',
+      branchId: branch?._id ? String(branch._id) : undefined,
+      event: 'APPLICATION_STATUS_CHANGED',
+      category: 'APPLICATIONS',
+      title: notifTitle,
+      message: notifMessage,
+      metadata: {
+        entityType: 'Application',
+        entityId: String(app._id),
+        deepLink: '/my/application',
+      },
+      priority,
+    }),
+    emailPromise,
+  ]);
+}
 
   private format(a: ApplicationDocument): FormattedApplication {
   const student = a.student as unknown as {

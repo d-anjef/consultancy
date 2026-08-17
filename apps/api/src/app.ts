@@ -50,6 +50,7 @@ import { taskRoutes } from './modules/tasks/task.routes.js';
 import { reportRoutes } from './modules/reports/report.routes.js';
 
 import { notificationRoutes } from './modules/notifications/notification.routes.js';
+import  { announcementRoutes } from './modules/announcements/announcement.routes.js';
 
 export function createApp(): express.Application {
   const app = express();
@@ -239,6 +240,7 @@ app.use(`${API_PREFIX}/qr`, qrRoutes);
 app.use(`${API_PREFIX}/tasks`, taskRoutes);
 app.use(`${API_PREFIX}/reports`, reportRoutes);
 app.use(`${API_PREFIX}/notifications`, notificationRoutes);
+app.use(`${API_PREFIX}/announcements`,announcementRoutes);
 
   // ─── 404 Handler ─────
   app.use(notFoundHandler);

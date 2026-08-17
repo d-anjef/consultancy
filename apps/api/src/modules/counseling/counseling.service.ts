@@ -10,6 +10,9 @@ import {
 import { counselingRepository } from './counseling.repository.js';
 import { leadRepository } from '../leads/lead.repository.js';
 import { userRepository } from '../users/user.repository.js';
+import { notificationService } from '../notifications/notification.service.js';
+import { emailService } from '../auth/email.service.js';
+import { logger } from '../../lib/logger.js';
 import { LeadModel } from '../leads/lead.model.js';
 import type { CounselingDocument } from './counseling.model.js';
 import type { LeadDocument } from '../leads/lead.model.js';
@@ -66,10 +69,6 @@ interface ActorContext {
   branch: string | null;
 }
 
-/**
- * Helper: Safely extract branch ID from either a populated Mongoose document
- * or a raw ObjectId reference.
- */
 function extractBranchId(branch: unknown): string | null {
   if (!branch) return null;
   if (typeof branch === 'string') return branch;
@@ -181,6 +180,11 @@ export class CounselingService {
       });
     }
 
+    // ═══ NOTIFY (fire-and-forget) ═══
+    this.notifyCounselingScheduled(created).catch((err: unknown) =>
+      logger.warn({ err, counselingId: created._id }, 'Counseling notification failed (non-blocking)'),
+    );
+
     return this.format(created);
   }
 
@@ -273,6 +277,17 @@ export class CounselingService {
     );
 
     if (!updated) throw new NotFoundError('Counseling', id);
+
+    // ═══ NOTIFY (fire-and-forget, safe after null check) ═══
+    this.notifyCounselingRescheduled(
+      updated,
+      existing.scheduledDate,
+      existing.scheduledTime,
+      data.reason,
+    ).catch((err: unknown) =>
+      logger.warn({ err, counselingId: updated._id }, 'Counseling reschedule notification failed'),
+    );
+
     return this.format(updated);
   }
 
@@ -400,72 +415,157 @@ export class CounselingService {
   }
 
   private enforceBranchAccess(counseling: CounselingDocument, actor: ActorContext): void {
-  if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
-  const branch = counseling.branch as unknown as BranchDocument | null;
-  const branchId = branch?._id ? String(branch._id) : null;
-  if (branchId !== actor.branch) {
-    throw new ForbiddenError("You do not have access to this counseling's branch");
+    if (ORGANIZATION_WIDE_ROLE_CODES.includes(actor.role)) return;
+    const branch = counseling.branch as unknown as BranchDocument | null;
+    const branchId = branch?._id ? String(branch._id) : null;
+    if (branchId !== actor.branch) {
+      throw new ForbiddenError("You do not have access to this counseling's branch");
+    }
   }
-}
+
+  // ═══════════════════════════════════════════════════
+  // NOTIFICATION HELPERS
+  // ═══════════════════════════════════════════════════
+
+  private async notifyCounselingScheduled(counseling: CounselingDocument): Promise<void> {
+    const lead = counseling.lead as unknown as LeadDocument | null;
+    const counselor = counseling.counselor as unknown as UserDocument | null;
+    const branch = counseling.branch as unknown as BranchDocument | null;
+
+    if (!lead?._id) return;
+
+    // Safely extract lead contact email
+    const leadContact = (lead as unknown as { contact?: { email?: string } }).contact;
+    const leadPersonal = (lead as unknown as { personal?: { firstName?: string; lastName?: string } }).personal;
+
+    if (!leadContact?.email) return;
+
+    const leadName = `${leadPersonal?.firstName ?? ''} ${leadPersonal?.lastName ?? ''}`.trim();
+    const counselorName = counselor
+      ? `${counselor.profile?.firstName ?? ''} ${counselor.profile?.lastName ?? ''}`.trim()
+      : 'Your counselor';
+
+    // Email the lead
+    await emailService.sendCounselingScheduled({
+      to: leadContact.email,
+      recipientName: leadName || 'Applicant',
+      counselingNumber: counseling.counselingNumber,
+      scheduledDate: counseling.scheduledDate,
+      scheduledTime: counseling.scheduledTime,
+      counselorName,
+      branchName: branch?.name ?? 'our office',
+    });
+
+    // Also notify the counselor in-app
+    if (counselor?._id) {
+      await notificationService.create({
+        recipientId: String(counselor._id),
+        recipientRole: 'COUNSELOR',
+        branchId: branch?._id ? String(branch._id) : undefined,
+        event: 'COUNSELING_ASSIGNED',
+        category: 'COUNSELING',
+        title: 'Counseling Scheduled',
+        message: `Session with ${leadName || 'lead'} on ${counseling.scheduledDate.toLocaleDateString()} at ${counseling.scheduledTime}`,
+        metadata: {
+          entityType: 'Counseling',
+          entityId: String(counseling._id),
+          deepLink: '/counseling',
+        },
+        priority: 'NORMAL',
+      });
+    }
+  }
+
+  private async notifyCounselingRescheduled(
+    counseling: CounselingDocument,
+    oldDate: Date,
+    oldTime: string,
+    reason?: string,
+  ): Promise<void> {
+    const lead = counseling.lead as unknown as LeadDocument | null;
+    if (!lead?._id) return;
+
+    const leadContact = (lead as unknown as { contact?: { email?: string } }).contact;
+    const leadPersonal = (lead as unknown as { personal?: { firstName?: string; lastName?: string } }).personal;
+
+    if (!leadContact?.email) return;
+
+    const leadName = `${leadPersonal?.firstName ?? ''} ${leadPersonal?.lastName ?? ''}`.trim();
+
+    await emailService.sendCounselingRescheduled({
+      to: leadContact.email,
+      recipientName: leadName || 'Applicant',
+      counselingNumber: counseling.counselingNumber,
+      oldDate,
+      oldTime,
+      newDate: counseling.scheduledDate,
+      newTime: counseling.scheduledTime,
+      reason,
+    });
+  }
 
   private format(c: CounselingDocument): FormattedCounseling {
-  const lead = c.lead as unknown as LeadDocument | null;
-  const branch = c.branch as unknown as BranchDocument | null;
-  const counselor = c.counselor as unknown as UserDocument | null;
+    const lead = c.lead as unknown as LeadDocument | null;
+    const branch = c.branch as unknown as BranchDocument | null;
+    const counselor = c.counselor as unknown as UserDocument | null;
 
-  return {
-    id: String(c._id),
-    counselingNumber: c.counselingNumber,
-    lead: lead?._id
-      ? {
-          id: String(lead._id),
-          leadNumber: lead.leadNumber ?? '',
-          firstName: lead.personal?.firstName ?? '',
-          lastName: lead.personal?.lastName ?? '',
-          status: lead.status ?? '',
-        }
-      : {
-          id: '',
-          leadNumber: 'DELETED',
-          firstName: 'Deleted',
-          lastName: 'Lead',
-          status: '',
-        },
-    branch: branch?._id
-      ? { id: String(branch._id), code: branch.code, name: branch.name }
-      : { id: '', code: 'N/A', name: 'Unknown Branch' },
-    counselor: counselor?._id
-      ? {
-          id: String(counselor._id),
-          email: counselor.email,
-          firstName: counselor.profile?.firstName ?? '',
-          lastName: counselor.profile?.lastName ?? '',
-        }
-      : {
-          id: '',
-          email: 'unassigned',
-          firstName: 'Unassigned',
-          lastName: '',
-        },
-    scheduledDate: c.scheduledDate,
-    scheduledTime: c.scheduledTime,
-    durationMinutes: c.durationMinutes,
-    status: c.status,
-    attendedAt: c.attendedAt,
-    outcome: c.outcome
-      ? {
-          result: c.outcome.result,
-          notes: c.outcome.notes,
-          nextSteps: c.outcome.nextSteps,
-        }
-      : undefined,
-    followUpDate: c.followUpDate,
-    cancellationReason: c.cancellationReason,
-    cancelledAt: c.cancelledAt,
-    createdAt: c.createdAt,
-    updatedAt: c.updatedAt,
-  };
-}
+    const leadPersonal = lead
+      ? (lead as unknown as { personal?: { firstName?: string; lastName?: string } }).personal
+      : null;
+
+    return {
+      id: String(c._id),
+      counselingNumber: c.counselingNumber,
+      lead: lead?._id
+        ? {
+            id: String(lead._id),
+            leadNumber: lead.leadNumber ?? '',
+            firstName: leadPersonal?.firstName ?? '',
+            lastName: leadPersonal?.lastName ?? '',
+            status: lead.status ?? '',
+          }
+        : {
+            id: '',
+            leadNumber: 'DELETED',
+            firstName: 'Deleted',
+            lastName: 'Lead',
+            status: '',
+          },
+      branch: branch?._id
+        ? { id: String(branch._id), code: branch.code, name: branch.name }
+        : { id: '', code: 'N/A', name: 'Unknown Branch' },
+      counselor: counselor?._id
+        ? {
+            id: String(counselor._id),
+            email: counselor.email,
+            firstName: counselor.profile?.firstName ?? '',
+            lastName: counselor.profile?.lastName ?? '',
+          }
+        : {
+            id: '',
+            email: 'unassigned',
+            firstName: 'Unassigned',
+            lastName: '',
+          },
+      scheduledDate: c.scheduledDate,
+      scheduledTime: c.scheduledTime,
+      durationMinutes: c.durationMinutes,
+      status: c.status,
+      attendedAt: c.attendedAt,
+      outcome: c.outcome
+        ? {
+            result: c.outcome.result,
+            notes: c.outcome.notes,
+            nextSteps: c.outcome.nextSteps,
+          }
+        : undefined,
+      followUpDate: c.followUpDate,
+      cancellationReason: c.cancellationReason,
+      cancelledAt: c.cancelledAt,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    };
+  }
 }
 
 export const counselingService = new CounselingService();
