@@ -221,13 +221,13 @@ export default function StudentDashboardPage() {
               <p className="text-xxs uppercase tracking-widest opacity-80">
                 Student ID
               </p>
-              <p className="mt-1 text-xl font-bold font-mono tabular-nums">
                 {studentLoading ? (
                   <Skeleton className="h-6 w-32 bg-white/20" />
                 ) : (
+                  <p className="mt-1 text-xl font-bold font-mono tabular-nums">
                   student?.studentId ?? '—'
-                )}
               </p>
+                )}
               {student?.branch && (
                 <p className="mt-1 text-xs opacity-90 flex items-center gap-1">
                   <MapPin className="h-3 w-3" />

@@ -209,10 +209,10 @@ export default function DashboardPage() {
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </div>
-              <p className="mt-1 text-3xl font-bold tabular-nums">
                 {studentStatsLoading ? (
                   <Skeleton className="h-8 w-16 bg-white/20" />
                 ) : (
+                  <p className="mt-1 text-3xl font-bold tabular-nums">
                   <AnimatedNumber
                     value={
                       studentStats?.byStatus?.ACTIVE ??
@@ -220,8 +220,8 @@ export default function DashboardPage() {
                       0
                     }
                   />
+                  </p>
                 )}
-              </p>
             </div>
           </div>
         </div>
